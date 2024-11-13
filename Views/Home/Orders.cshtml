@@ -15,6 +15,10 @@
 </head>
 
 <body>
+    <div id="loading" class="loading" style="display: none;">
+    <div class="spinner"></div>
+    <p>Loading...</p>
+  </div>
     <div class="Orders-container">
 
         <nav class="sidebar">
@@ -22,15 +26,15 @@
                 <li><a href="https://localhost:7003/Home/Customer_Home" id="Customer_Home-link"><i
                             class="fas fa-tachometer-alt"></i> Dashboard</a></li>
 
-                <li><a href="https://localhost:7003/Home/Orders"><i class="fas fa-users"></i> Orders</a></li>
+                <li><a href="#" id="Order-link"><i class="fas fa-users"></i> Orders</a></li>
                 <link rel="stylesheet"
                     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
                 <li><a href="https://localhost:7003/Home/Invoices"><i class="fa-solid fa-file-lines"></i> Invoices</a>
                 </li>
-                <button class="logout-button" onclick="logout()">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>
             </ul>
+            <button class="logout-button" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
         </nav>
     </div>
     <main class="content">
@@ -211,37 +215,13 @@
         }
         window.addEventListener("load", fetchDataAndPopulateTable);
 
-        @* // Example API URL
-        document.addEventListener("DOMContentLoaded", function () {
-            // Fetch user data from sessionStorage
-      const OrdersData = JSON.parse(sessionStorage.getItem("allorders"));
-
-            // Function to update the UI with fetched data
-      function updateOrderInfo() {
-            if (OrdersData) {
-
-          console.log(OrdersData);// general data
-          document.getElementById("no").textContent = OrdersData.No || "N/A";
-          document.getElementById("name").textContent = OrdersData.Name || "N/A";
-          document.getElementById("balance").textContent = OrdersData.Balance_LCY || "N/A";
-          document.getElementById("balance_due").textContent = OrdersData.Balance_Due_LCY || "N/A";
-          document.getElementById("credit_limit").textContent = OrdersData.Credit_Limit_LCY || "N/A";
-          document.getElementById("total_sales").textContent = OrdersData.Sales_LCY || "N/A";
-            // address data
-          document.getElementById("address").textContent = OrdersData.Name || "N/A";
-          document.getElementById("country_region_code").textContent = OrdersData.Country_Region_Code || "N/A";
-          document.getElementById("phone_no").textContent = OrdersData.Phone_No || "N/A";
-          document.getElementById("location_code").textContent = OrdersData.Location_Code || "N/A";
-
-
-            } else {
-          document.getElementById("userData").textContent = "No data found!";
-            }
-            }
-
-            // Initial data load
-            updateOrderInfo();
-            }); *@
+        document.getElementById("Order-link").addEventListener("click", function (event) {
+      event.preventDefault(); // Prevent the default link action
+      document.getElementById("loading").style.display = "flex"; // Show loading indicator
+      setTimeout(() => {
+        location.reload(); // Refresh the page after a short delay
+      }, 500); // Delay to allow the loading indicator to show
+    });
 
     </script>
     <script src="~/assets/js/plugin/webfont/webfont.min.js"></script>

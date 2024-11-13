@@ -29,23 +29,39 @@
 
         <li><a href="https://localhost:7003/Home/Orders"><i class="fas fa-users"></i> Orders</a></li>
         <li><a href="https://localhost:7003/Home/Invoices"><i class="fa-solid fa-file-lines"></i> Invoices</a></li>
-        <button class="logout-button" onclick="logout()">
-          <i class="fas fa-sign-out-alt"></i> Logout
-        </button>
       </ul>
+      <button class="logout-button" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
     </nav>
 
     <!-- Main Content -->
     <main class="content">
       <div class="header">
-        <h2>Welcome, <span id="headername">Guest</span>!</h2>
-        <h2>Customer Details</h2>
-        <!-- Logout button here -->
+        <div class="header-row">
+          <h2>Welcome, <span id="headername">Guest</span>!</h2>
+        </div>
+        <div class="header-row">
+          <h2>Customer Details</h2>
+          <button class="statement-button" onclick="openModal()">Download Statement</button>
+        </div>
       </div>
-
     </main>
 
-  </div>
+    <!-- Modal for date selection -->
+    <div id="dateModal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <h3>Select Date Range</h3>
+        <label for="startDate">Start Date:</label>
+        <input type="date" id="startDate" onchange="validateDates()">
+        <label for="endDate">End Date:</label>
+        <input type="date" id="endDate" onchange="validateDates()" max="">
+        <button onclick="downloadStatement()">Download</button>
+      </div>
+    </div>
+
+  </div>>
 
 
   <div class="tile_container">
@@ -129,12 +145,78 @@
 
 
   <script>
+    function openModal() {
+      document.getElementById("dateModal").style.display = "block";
+      // Set the maximum selectable date for today
+      const stoday = new Date().toISOString().split("T")[0];
+      document.getElementById("startDate").setAttribute("max", stoday);
+      const etoday = new Date().toISOString().split("T")[0];
+      document.getElementById("endDate").setAttribute("max", etoday);
+    }
+    function closeModal() {
+      document.getElementById("dateModal").style.display = "none";
+    }
+    function validateDates() {
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+      const today = new Date().toISOString().split("T")[0];
+
+      // Ensure end date is not in the future
+      if (endDate && new Date(endDate) > new Date(today)) {
+        document.getElementById("endDate").value = today;
+        alert("End date cannot be a future date.");
+      }
+
+      // Ensure start date is not after the end date
+      if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+        document.getElementById("endDate").value = startDate;
+        alert("End date cannot be earlier than start date.");
+      }
+    }
+    async function downloadStatement() {
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+
+      if (!startDate || !endDate) {
+        alert("Please select both start and end dates.");
+        return;
+      }
+
+      // Make API call with the selected date range
+      try {
+        const response = await fetch(`https://your-api-url.com/download-statement`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ startDate, endDate }),
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = `Statement_${startDate}_to_${endDate}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          toggleDatePopup(); // Close popup after download
+        } else {
+          alert("Failed to download statement.");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        alert("An error occurred while downloading the statement.");
+      }
+    }
     // Add an event listener for the back navigation
     window.addEventListener("popstate", function (event) {
       // Check if user is on the dashboard page
       console.log("popstat called");
       debugger;
-      sessionStorage.setItem("popstat_called","true");
+      sessionStorage.setItem("popstat_called", "true");
 
       const confirmLogout = confirm("Are you sure? You will be logged out.");
 
@@ -151,7 +233,7 @@
       }
 
     });
-
+    console.log("href:" + window.location.href);
     // Optional: Set the initial state for this page on load
     window.addEventListener("load", function () {
       history.pushState(null, null, window.location.href);
@@ -254,7 +336,7 @@
         alert("Session expired due to inactivity.");
         sessionStorage.clear();
         window.location.href = "https://localhost:7003";
-      }, 60000);
+      }, 300000);
     }
 
     // Reset session timer on activity

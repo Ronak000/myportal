@@ -30,11 +30,15 @@ body {
   padding: 20px;
   position: fixed;
   height: 100%;
+  display: flex;
+    flex-direction: column;
 }
 
 .sidebar ul {
-  list-style: none;
-  padding: 0;
+  flex-grow: 1; /* Pushes the logout button to the bottom */
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
 .sidebar ul li {
@@ -136,7 +140,7 @@ body {
 /* Responsive Styles */
 @media (max-width: 1024px) {
   .sidebar {
-      width: 100px;
+      width: 170px;
       padding: 15px;
       text-align: center;
   }
