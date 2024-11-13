@@ -1,0 +1,345 @@
+﻿@{
+  ViewData["Title"] = "Home";
+}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>@ViewData["Title"] - MyPortal</title>
+
+  <link rel="stylesheet" href="~/css/Customer_Home.css" asp-append-version="true" />
+
+
+</head>
+
+<body>
+
+  <div id="loading" class="loading" style="display: none;">
+    <div class="spinner"></div>
+    <p>Loading...</p>
+  </div>
+  <div class="Customer_Home-container">
+
+    <nav class="sidebar">
+      <ul>
+        <li><a href="#" id="Customer_Home-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+        <li><a href="https://localhost:7003/Home/Orders"><i class="fas fa-users"></i> Orders</a></li>
+        <li><a href="https://localhost:7003/Home/Invoices"><i class="fa-solid fa-file-lines"></i> Invoices</a></li>
+        <button class="logout-button" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="content">
+      <div class="header">
+        <h2>Welcome, <span id="headername">Guest</span>!</h2>
+        <h2>Customer Details</h2>
+        <!-- Logout button here -->
+      </div>
+
+    </main>
+
+  </div>
+
+
+  <div class="tile_container">
+    <div class="tile">
+      <h2>Sales Orders</h2>
+      <p class="count" id="orderCount">-</p>
+      <div class="arrow">></div>
+    </div>
+    <div class="tile">
+      <h2>Invoices</h2>
+      <p class="count" id="invoiceCount">-</p>
+      <div class="arrow">></div>
+    </div>
+    <div class="tile">
+      <h2>Next Due Payment Date</h2>
+      <p class="count" id="earliestpaymentdate">-</p>
+      <div class="arrow">></div>
+    </div>
+    <div class="tile">
+      <h2>Next Due Payment Amount</h2>
+      <p class="count" id="earliestpaymentamount">-</p>
+      <div class="arrow">></div>
+    </div>
+  </div>
+  <!-- User Details -->
+  <div class="section">
+    <h3>General Information</h3>
+    @* <div class="user-info-card"> *@
+    <div class="user-details">
+      <div class="user-detail-item">
+        <p class="key">No:</p>
+        <p class="value" id="no">Loading...</p>
+      </div>
+      <div class="user-detail-item">
+        <p class="key">Name:</p>
+        <p class="value" id="name">Loading...</p>
+      </div>
+      <div class="user-detail-item">
+        <p class="key">Balance:</p>
+        <p class="value" id="balance">Loading...</p>
+      </div>
+      <div class="user-detail-item">
+        <p class="key">Balance Due:</p>
+        <p class="value" id="balance_due">Loading...</p>
+      </div>
+      <div class="user-detail-item">
+        <p class="key">Credit Limit ($):</p>
+        <p class="value" id="credit_limit">Loading...</p>
+      </div>
+      <div class="user-detail-item">
+        <p class="key">Total Sales:</p>
+        <p class="value" id="total_sales">Loading...</p>
+      </div>
+    </div>
+  </div>
+  <!-- end user info card-->
+  <div class="section">
+    <h3>Address</h3>
+    @* <div class="user-info-card"> *@
+    <div class="user-details">
+      <div class="user-detail-item">
+        <p class="key">Address:</p>
+        <p class="value" id="address">Loading...</p>
+      </div>
+      <div class="user-detail-item">
+        <p class="key">Country/Region_Code:</p>
+        <p class="value" id="country_region_code">Loading...</p>
+      </div>
+      <div class="user-detail-item">
+        <p class="key">Phone No:</p>
+        <p class="value" id="phone_no">Loading...</p>
+      </div>
+      <div class="user-detail-item">
+        <p class="key">Location Code:</p>
+        <p class="value" id="location_code">Loading...</p>
+      </div>
+    </div>
+  </div>
+
+
+
+
+  <script>
+    // Add an event listener for the back navigation
+    window.addEventListener("popstate", function (event) {
+      // Check if user is on the dashboard page
+      console.log("popstat called");
+      debugger;
+      sessionStorage.setItem("popstat_called","true");
+
+      const confirmLogout = confirm("Are you sure? You will be logged out.");
+
+      if (confirmLogout) {
+        // Clear session data or mark the user as logged out
+        sessionStorage.clear();
+        localStorage.clear();
+
+        // Redirect to login page
+        window.location.href = "https://localhost:7003/"; // Replace with your login URL
+      } else {
+        // Prevent going back by pushing the current state again
+        history.pushState(null, null, window.location.href);
+      }
+
+    });
+
+    // Optional: Set the initial state for this page on load
+    window.addEventListener("load", function () {
+      history.pushState(null, null, window.location.href);
+    });
+    const UniqueNo = JSON.parse(sessionStorage.getItem("UniqueNo"));
+
+    // Function to fetch data and get the count
+    async function fetchOrdersCount() {
+      try {
+        if (UniqueNo !== null) {
+          const response = await fetch(`https://localhost:7003/api/Account/Orders?No=${UniqueNo}`);
+
+          if (!response.ok) {
+
+            throw new Error(`Error: ${response.status}`);
+          }
+          const data = await response.json();
+
+    @* sessionStorage.setItem("allorders", JSON.stringify(data)); *@
+        // Get the count of items in the array
+        const totalCount = data.length;
+
+          document.getElementById('orderCount').textContent = totalCount;
+        }
+      }
+
+      catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    }
+    async function fetchInvoiceCount() {
+      try {
+        if (UniqueNo !== null) {
+          const response = await fetch(`https://localhost:7003/api/Account/Invoices?No=${UniqueNo}`);
+
+          if (!response.ok) {
+
+            throw new Error(`Error: ${response.status}`);
+          }
+          const data = await response.json();
+          const totalCount = data.length;
+
+          document.getElementById('invoiceCount').textContent = totalCount;
+        }
+      }
+      catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    }
+    async function fetchEarliestPaymentDate() {
+      try {
+        if (UniqueNo !== null) {
+          const response = await fetch(`https://localhost:7003/api/Account/EarliestPaymentDate?No=${UniqueNo}`);
+
+          if (!response.ok) {
+
+            throw new Error(`Error: ${response.status}`);
+          }
+          const data = await response.json();
+
+          document.getElementById('earliestpaymentdate').textContent = data.date;
+        }
+      }
+      catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    }
+    async function fetchEarliestPaymentAmount() {
+      try {
+        if (UniqueNo !== null) {
+          const response = await fetch(`https://localhost:7003/api/Account/EarliestPaymentAmount?No=${UniqueNo}`);
+
+          if (!response.ok) {
+
+            throw new Error(`Error: ${response.status}`);
+          }
+          const data = await response.json();
+
+          document.getElementById('earliestpaymentamount').textContent = data;
+        }
+      }
+      catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    }
+
+    // Call the function when needed (e.g., on page load)
+    window.addEventListener("load", fetchOrdersCount);
+    window.addEventListener("load", fetchInvoiceCount);
+    window.addEventListener("load", fetchEarliestPaymentDate);
+    window.addEventListener("load", fetchEarliestPaymentAmount);
+
+    let timeout;
+
+    function startSessionTimeout() {
+      // Clear any existing timeout
+      clearTimeout(timeout);
+      // Set a new timeout for logout
+      timeout = setTimeout(() => {
+        alert("Session expired due to inactivity.");
+        sessionStorage.clear();
+        window.location.href = "https://localhost:7003";
+      }, 60000);
+    }
+
+    // Reset session timer on activity
+    function resetSessionTimeout() {
+      startSessionTimeout();
+    }
+
+    // Add event listeners for user activity
+    document.addEventListener("mousemove", resetSessionTimeout);
+    document.addEventListener("keypress", resetSessionTimeout);
+
+    // Start the initial session timeout when the page loads
+    startSessionTimeout();
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+      // Fetch user data from sessionStorage
+      const apiData = JSON.parse(sessionStorage.getItem("userData"));
+
+      // Function to update the UI with fetched data
+      function updateUserInfo() {
+        if (apiData) {
+
+          console.log(apiData);// general data
+          document.getElementById("no").textContent = apiData.No || "N/A";
+          document.getElementById("name").textContent = apiData.Name || "N/A";
+          document.getElementById("headername").textContent = apiData.Name || "N/A";
+          document.getElementById("balance").textContent = apiData.Balance_LCY || "N/A";
+          document.getElementById("balance_due").textContent = apiData.Balance_Due_LCY || "N/A";
+          document.getElementById("credit_limit").textContent = apiData.Credit_Limit_LCY || "N/A";
+          document.getElementById("total_sales").textContent = apiData.Sales_LCY || "N/A";
+          // address data
+          document.getElementById("address").textContent = apiData.Name || "N/A";
+          document.getElementById("country_region_code").textContent = apiData.Country_Region_Code || "N/A";
+          document.getElementById("phone_no").textContent = apiData.Phone_No || "N/A";
+          document.getElementById("location_code").textContent = apiData.Location_Code || "N/A";
+
+
+        } else {
+          document.getElementById("userData").textContent = "No data found!";
+        }
+      }
+
+      // Initial data load
+      updateUserInfo();
+    });
+    // Refresh the Customer_Home on clicking the Customer_Home link
+    document.getElementById("Customer_Home-link").addEventListener("click", function (event) {
+      event.preventDefault(); // Prevent the default link action
+      document.getElementById("loading").style.display = "flex"; // Show loading indicator
+      setTimeout(() => {
+        location.reload(); // Refresh the page after a short delay
+      }, 500); // Delay to allow the loading indicator to show
+    });
+
+    // onclick event on Logout button
+    function logout() {
+      // Clear the token or session data Or localStorage, depending on where the token is stored
+      sessionStorage.removeItem("userData");
+      fetch("https://localhost:7003/Home/Logout", {
+        method: "POST",
+        credentials: "include"  // Include cookies if necessary for the server session
+      })
+        .then(response => {
+          if (response.ok) {
+            // Redirect to login page after successful logout
+            sessionStorage.removeItem("isLoggedIn");
+            sessionStorage.clear();
+            window.location.href = "https://localhost:7003";
+          } else {
+            console.error("Failed to log out");
+          }
+        })
+        .catch(error => {
+          console.error("Logout error:", error);
+        });
+    }
+
+
+
+
+
+  </script>
+
+  <script src="~/assets/js/plugin/webfont/webfont.min.js"></script>
+</body>
+
+</html>

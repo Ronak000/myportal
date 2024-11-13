@@ -1,0 +1,250 @@
+@{
+    ViewData["Title"] = "Orders";
+}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - MyPortal</title>
+
+    <link rel="stylesheet" href="~/css/Orders.css" asp-append-version="true" />
+    @* <link rel="stylesheet" href="~/css/Customer_Home.css" asp-append-version="true" /> *@
+
+</head>
+
+<body>
+    <div class="Orders-container">
+
+        <nav class="sidebar">
+            <ul>
+                <li><a href="https://localhost:7003/Home/Customer_Home" id="Customer_Home-link"><i
+                            class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+
+                <li><a href="https://localhost:7003/Home/Orders"><i class="fas fa-users"></i> Orders</a></li>
+                <link rel="stylesheet"
+                    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+                <li><a href="https://localhost:7003/Home/Invoices"><i class="fa-solid fa-file-lines"></i> Invoices</a>
+                </li>
+                <button class="logout-button" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </ul>
+        </nav>
+    </div>
+    <main class="content">
+        <div class="header">
+            <h2>Order Details</h2>
+        </div>
+    </main>
+    <div class="ordertable">
+        <table class="styled-table" id="orderTable">
+            <thead>
+                <tr>
+                    <th>No.</th>
+                    <th>Location Code</th>
+                    <th>Document Date</th>
+                    <th>Due Date</th>
+                    <th>Amount</th>
+                    <th>Ship to Address</th>
+                    <th>Ship to City</th>
+                    <th>Status</th>
+                    <th>Download</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data rows will be added here dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+
+
+    <script>
+        let timeout;
+
+        function startSessionTimeout() {
+            // Clear any existing timeout
+            clearTimeout(timeout);
+
+            // Set a new timeout for logout
+            timeout = setTimeout(() => {
+                alert("Session expired due to inactivity.");
+                sessionStorage.clear();
+                window.location.href = "https://localhost:7003";
+            }, 300000);
+        }
+
+        // Reset session timer on activity
+        function resetSessionTimeout() {
+            startSessionTimeout();
+        }
+
+        // Add event listeners for user activity
+        document.addEventListener("mousemove", resetSessionTimeout);
+        document.addEventListener("keypress", resetSessionTimeout);
+
+        // Start the initial session timeout when the page loads
+        startSessionTimeout();
+        function logout() {
+            // Clear the token or session data Or localStorage, depending on where the token is stored
+            sessionStorage.removeItem("userData");
+            fetch("https://localhost:7003/Home/Logout", {
+                method: "POST",
+                credentials: "include"  // Include cookies if necessary for the server session
+            })
+                .then(response => {
+                    if (response.ok) {
+                        // Redirect to login page after successful logout
+                        sessionStorage.removeItem("isLoggedIn");
+                        window.location.href = "https://localhost:7003";
+                    } else {
+                        console.error("Failed to log out");
+                    }
+                })
+                .catch(error => {
+                    console.error("Logout error:", error);
+                });
+        }
+        const UniqueNo = JSON.parse(sessionStorage.getItem("UniqueNo"));
+        async function fetchDataAndPopulateTable() {
+
+            try {
+                // Retrieve and parse data from sessionStorage
+                const response = await fetch(`https://localhost:7003/api/Account/Orders?No=${10000}`);
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status}`);
+                }
+
+                // Parse the JSON data
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    // Get the table body element
+                    const tableBody = document.getElementById("orderTable").getElementsByTagName("tbody")[0];
+                    console.log(tableBody);
+
+                    // Clear any existing rows
+                    tableBody.innerHTML = "";
+
+                    // Loop through each item in the data and add it to the table
+                    data.forEach((item) => {
+                        // Create a new row
+                        const row = document.createElement("tr");
+
+                        // Populate cells with data
+                        row.innerHTML = `
+                    <td>${item.no || "N/A"}</td>
+                    <td>${item.locationCode || "N/A"}</td>
+                    <td>${item.documentDate || "N/A"}</td>
+                    <td>${item.dueDate || "N/A"}</td>
+                    <td>${item.amount || "N/A"}</td>
+                    <td>${item.shipToAddress || "N/A"}</td>
+                    <td>${item.shipToCity || "N/A"}</td>
+                    <td class="${item.status === 'Open' ? 'status-open' : ''}">${item.status || "N/A"}</td>
+                    <td><button class="download-button" onclick="downloadReport('${item.no}')">Download</button></td>`;
+
+                        // Append the row to the table body
+                        tableBody.appendChild(row);
+                    });
+                }
+                else {
+                    // If no data, display a message
+                    document.getElementById("orderTable").getElementsByTagName("tbody")[0].innerHTML = "<tr><td colspan='8'>No data available</td></tr>";
+                }
+            }
+
+            catch (error) {
+                console.error("Error fetching data:", error);
+                const tableBody = document.getElementById("orderTable").getElementsByTagName("tbody")[0];
+                tableBody.innerHTML = "<tr><td colspan='8'>Error fetching data</td></tr>";
+            }
+        }
+        // Function to call the API to download the report
+        async function downloadReport(orderNo) {
+            // Call the API to get the Base64-encoded PDF content
+            const response = await fetch(`https://localhost:7003/api/Account/DownloadOrders/${orderNo}`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log(data.base64);
+                console.log(data.success);
+
+                // Assuming the response JSON structure is { success: true, base64Pdf: "Base64StringHere" }
+                if (data.base64) {
+                    // Decode the Base64 string
+                    console.log("base64:" + data.base64);
+                    const byteCharacters = atob(data.base64);
+                    console.log("bytechar:" + byteCharacters);
+
+                    // Convert the byte characters to an array of bytes
+                    const byteNumbers = Array.from(byteCharacters).map(char => char.charCodeAt(0));
+                    const byteArray = new Uint8Array(byteNumbers);
+                    console.log("bytearray:" + byteArray);
+
+                    // Create a Blob from the byte array and specify the MIME type as PDF
+                    const blob = new Blob([byteArray], { type: 'application/pdf' });
+                    console.log("blob:" + blob);
+
+                    // Create a URL for the Blob and initiate a download
+                    const downloadUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.download = `Order_${orderNo}.pdf`;  // The name of the file to be downloaded
+                    document.body.appendChild(link);
+                    link.click();
+
+                    // Clean up: revoke the object URL and remove the temporary link element
+                    URL.revokeObjectURL(downloadUrl);
+                    document.body.removeChild(link);
+                } else {
+                    alert("File download failed.");
+                }
+            } else {
+                alert("Failed to retrieve the file.");
+            }
+        }
+        window.addEventListener("load", fetchDataAndPopulateTable);
+
+        @* // Example API URL
+        document.addEventListener("DOMContentLoaded", function () {
+            // Fetch user data from sessionStorage
+      const OrdersData = JSON.parse(sessionStorage.getItem("allorders"));
+
+            // Function to update the UI with fetched data
+      function updateOrderInfo() {
+            if (OrdersData) {
+
+          console.log(OrdersData);// general data
+          document.getElementById("no").textContent = OrdersData.No || "N/A";
+          document.getElementById("name").textContent = OrdersData.Name || "N/A";
+          document.getElementById("balance").textContent = OrdersData.Balance_LCY || "N/A";
+          document.getElementById("balance_due").textContent = OrdersData.Balance_Due_LCY || "N/A";
+          document.getElementById("credit_limit").textContent = OrdersData.Credit_Limit_LCY || "N/A";
+          document.getElementById("total_sales").textContent = OrdersData.Sales_LCY || "N/A";
+            // address data
+          document.getElementById("address").textContent = OrdersData.Name || "N/A";
+          document.getElementById("country_region_code").textContent = OrdersData.Country_Region_Code || "N/A";
+          document.getElementById("phone_no").textContent = OrdersData.Phone_No || "N/A";
+          document.getElementById("location_code").textContent = OrdersData.Location_Code || "N/A";
+
+
+            } else {
+          document.getElementById("userData").textContent = "No data found!";
+            }
+            }
+
+            // Initial data load
+            updateOrderInfo();
+            }); *@
+
+    </script>
+    <script src="~/assets/js/plugin/webfont/webfont.min.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,263 @@
+ 
+
+ /*  UI for customer data showihn in home page */
+
+ body {
+  background:#e0f7f8;;
+  height: 100vh;
+  /* display: flex; */
+  width: 100%;
+  
+}
+.Customer_Home-container {
+  width: 100%;
+ display: flex;
+  /* background-color: brown; */
+}
+/* .form-chnagepassword{
+  width: 430px;
+	height: 300px;
+	  font-size: 16px;
+	  font-weight: 300;
+	padding-left: 37px;
+	padding-right: 37px;
+	padding-top: 120px;
+	transition: opacity .5s ease, transform .5s ease;
+} */
+
+.sidebar {
+  background-color: #008080;
+  color: white;
+  width: 220px;
+  padding: 20px;
+  position: fixed;
+  height: 100%;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  margin: 20px 0;
+}
+
+.sidebar ul li a {
+  color: white;
+  text-decoration: none;
+  font-size: 16px;
+  display: block;
+  padding: 10px;
+  border-radius: 5px;
+  transition: background-color 0.3s;
+}
+
+.sidebar ul li a:hover {
+  background-color: #63d0d4;
+}
+
+.section {
+  margin-top: 20px;
+  margin-left: 240px;
+  margin-right: 34px;
+  /* border: 1px solid #ccc; Optional: adds a border around sections */
+  padding: 10px;
+  border-radius: 8px;
+  flex-grow: 1;
+  background-color: #ffffff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Light background for sections */
+}
+
+.section h3 {
+  font-size: 1.5rem; /* Slightly larger font size for section headings */
+  margin-bottom: 10px;
+}
+
+.content {
+  margin-left: 240px;
+  
+  margin-top: 10px;
+  padding: 30px;
+  flex-grow: 1;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+  margin-bottom: -25px;
+}
+
+h2 {
+  color: #004578;
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+ .logout-button {
+  /* margin-top: -70px;
+  margin-left: auto;  */
+  background-color: #008080; 
+  margin-top: 400px;
+  margin-left: 0px;
+  color: white; /* Button text color */
+  padding: 10px 15px; /* Padding for a consistent look */
+  border: none; /* Remove default border */
+  border-radius: 5px; /* Rounded corners */
+  font-size: 16px; /* Font size for the button text */
+  cursor: pointer; /* Pointer cursor on hover */
+  display: flex; /* Flex layout to center icon and text */
+  align-items: center; /* Center the icon and text vertically */
+  transition: background-color 0.3s ease; /* Smooth transition on hover */
+}
+
+.logout-button i {
+  margin-right: 8px; /* Space between icon and text */
+  font-size: 18px; /* Icon size */
+}
+
+.logout-button:hover {
+  background-color: #63d0d4; /* Darker background on hover */
+}
+
+
+/* .user-info-card {
+  background-color: #ffffff;
+  margin-right: 30px;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease-in-out;
+} */
+
+.user-details {
+  display: grid;
+  /* grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));  */ /* auto fill the grid */
+  grid-template-columns: 1fr 1fr; /* Two-column grid */
+  gap: 10px;
+}
+
+.user-detail-item {
+  display: grid;
+    grid-template-columns: 1fr 2fr; /* Space between key and value */
+    background-color: #e6f3ff;
+    padding: 7px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    font-size: 100%;
+}
+
+.user-detail-item:hover {
+  background-color: rgb(206, 244, 243);;
+}
+
+.user-detail-item p {
+  margin: 0;
+}
+.key {
+  font-weight: bold;
+  color: #004578;
+  padding-right: 10px; /* Add space between key and value */
+}
+
+.value {
+  color: #333;
+  font-weight: normal;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+      width: 100px;
+  }
+
+  .sidebar ul li a {
+      font-size: 12px;
+      padding: 8px;
+  }
+
+  .content {
+      margin-left: 80px;
+  }
+
+  .user-details {
+      grid-template-columns: 1fr; /* One-column grid on smaller screens */
+  }
+}
+.loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* Make sure it appears on top */
+}
+
+.spinner {
+  border: 8px solid #f3f3f3; /* Light grey */
+  border-top: 8px solid #3498db; /* Blue */
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.tile_container {
+  display: flex;
+  gap: 20px;
+  margin: 20px;
+  font-family: Arial, sans-serif;
+  margin-left: 240px;
+}
+
+.tile {
+  background-color: #008080; /* teal color */
+  color: white;
+  width: 150px;
+  /* height: 120px; */
+  padding: 10px;
+  padding-left: 10px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.tile h2 {
+  font-size: 1em;
+  margin: 0;
+  color: white;
+  margin-bottom: revert;
+}
+
+.tile .count {
+  font-size: larger;
+  margin: 0;
+}
+
+.tile .arrow {
+  font-size: 1.5em;
+  /* margin-top: 20px; */
+  margin-top: 10px;
+  color: #ffffff;
+  border-top: ridge; /* slightly transparent white */
+}
+.tile:hover  {
+  color: white;
+}
+
+
+
+
+
+
+

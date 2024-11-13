@@ -1,0 +1,198 @@
+/* Base styles */
+body {
+  background-color: #e0f7f8;
+}
+
+.Orders-container {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+}
+
+.content {
+  margin-left: 240px;
+  margin-top: 10px;
+  padding: 15px;
+  flex-grow: 1;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+  color: #004578;
+}
+
+.sidebar {
+  background-color: #008080;
+  color: white;
+  width: 220px;
+  padding: 20px;
+  position: fixed;
+  height: 100%;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar ul li {
+  margin: 20px 0;
+}
+
+.sidebar ul li a {
+  color: white;
+  text-decoration: none;
+  font-size: 16px;
+  display: block;
+  padding: 10px;
+  border-radius: 5px;
+  transition: background-color 0.3s;
+}
+
+.sidebar ul li a:hover {
+  background-color: #63d0d4;
+}
+
+.ordertable {
+  margin-left: 235px;
+  margin-right: 5px;
+}
+
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  box-shadow: 0 0 10px rgba(190, 25, 25, 0.1);
+  margin-top: 20px;
+}
+
+.styled-table thead tr {
+  background-color: #008080;
+  color: #ffffff;
+  text-align: left;
+}
+
+.styled-table th, .styled-table td {
+  padding: 12px 15px;
+  border: 1px solid #dddddd;
+  font-size: smaller;
+}
+
+.styled-table tbody tr {
+  border-bottom: 1px solid #dddddd;
+}
+
+.styled-table tbody tr:nth-of-type(even) {
+  background-color: #ffffff;
+}
+
+.styled-table tbody tr:nth-of-type(odd) {
+  background-color: #ffffff;
+}
+
+.styled-table tbody tr:hover {
+  background-color: #e0f7fa;
+}
+
+.status-open {
+  color: green;
+  font-weight: bold;
+}
+
+.download-button {
+  color: #008080;
+  cursor: pointer;
+  font-size: 16px;
+  text-decoration: underline;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.logout-button {
+  background-color: #008080; 
+  margin-top: 400px;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.3s ease;
+}
+
+.logout-button i {
+  margin-right: 8px;
+  font-size: 18px;
+}
+
+.logout-button:hover {
+  background-color: #63d0d4;
+}
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+  .sidebar {
+      width: 100px;
+      padding: 15px;
+      text-align: center;
+  }
+  
+  .content {
+      margin-left: 190px;
+  }
+
+  .ordertable {
+      margin-left: 185px;
+  }
+  .logout-button {
+    margin-left: 300px;
+}
+}
+
+@media (max-width: 768px) {
+  .Orders-container {
+      flex-direction: column;
+  }
+
+  .sidebar {
+      position: relative;
+      width: 100%;
+      height: auto;
+      margin-bottom: 20px;
+  }
+
+  .content {
+      margin-left: 0;
+  }
+
+  .ordertable {
+      margin-left: 0;
+      margin-right: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebar ul li a {
+      font-size: 14px;
+      padding: 8px;
+  }
+
+  .styled-table th, .styled-table td {
+      padding: 10px 8px;
+      font-size: smaller;
+  }
+
+  .logout-button {
+      font-size: 14px;
+      padding: 8px 12px;
+  }
+
+  .logout-button i {
+      font-size: 16px;
+  }
+  
+}
