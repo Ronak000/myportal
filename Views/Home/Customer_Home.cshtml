@@ -145,6 +145,7 @@
 
 
   <script>
+    const UniqueNo = JSON.parse(sessionStorage.getItem("UniqueNo"));
     function openModal() {
       document.getElementById("dateModal").style.display = "block";
       // Set the maximum selectable date for today
@@ -176,15 +177,19 @@
     async function downloadStatement() {
       const startDate = document.getElementById("startDate").value;
       const endDate = document.getElementById("endDate").value;
-
+      const today = new Date().toISOString().split("T")[0];
+      // Ensure end date is not in the future
+      if (endDate && new Date(endDate) > new Date(today)) {
+        document.getElementById("endDate").value = today;
+        alert("End date cannot be a future date.");
+      }
       if (!startDate || !endDate) {
         alert("Please select both start and end dates.");
         return;
       }
-
       // Make API call with the selected date range
       try {
-        const response = await fetch(`https://your-api-url.com/download-statement`, {
+        const response = await fetch(`https://localhost:7003/api/Account/DownloadStatements/${UniqueNo}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -193,7 +198,8 @@
         });
 
         if (response.ok) {
-          const blob = await response.blob();
+          console.log("successful");
+          @* const blob = await response.blob();
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.style.display = "none";
@@ -201,8 +207,8 @@
           a.download = `Statement_${startDate}_to_${endDate}.pdf`;
           document.body.appendChild(a);
           a.click();
-          window.URL.revokeObjectURL(url);
-          toggleDatePopup(); // Close popup after download
+          window.URL.revokeObjectURL(url); *@
+          closeModal(); // Close popup after download
         } else {
           alert("Failed to download statement.");
         }
@@ -233,12 +239,11 @@
       }
 
     });
-    console.log("href:" + window.location.href);
     // Optional: Set the initial state for this page on load
     window.addEventListener("load", function () {
       history.pushState(null, null, window.location.href);
     });
-    const UniqueNo = JSON.parse(sessionStorage.getItem("UniqueNo"));
+    
 
     // Function to fetch data and get the count
     async function fetchOrdersCount() {

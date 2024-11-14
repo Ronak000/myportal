@@ -12,6 +12,7 @@ using System.Text.Json;
 using MyPortal.DTO;
 using MyPortal.Data;
 using System.Xml.Linq;
+using Microsoft.OData.Edm;
 
 namespace MyPortal.Controllers
 {
@@ -152,6 +153,12 @@ namespace MyPortal.Controllers
         {
             return await _userService.DownloadInvoices(InvoiceNo);
         }
+        [HttpPost]
+        [Route("[action]/{No}")]
+        public async Task<IActionResult> DownloadStatements(string No, DateRange DateRange)
+        {
+            return await _userService.DownloadStatements(No, DateRange);
+        }
 
     }
 }
@@ -163,4 +170,9 @@ public class ChangePassword
 {
     public string Email { get; set; }
     public string Password { get; set; }
+}
+public class DateRange
+{    
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
 }

@@ -9,6 +9,7 @@ using System.Text.Json;
 using NAV;
 using Microsoft.OData;
 using System.Xml.Linq;
+using Microsoft.OData.Edm;
 
 namespace MyPortal.Services
 {
@@ -429,6 +430,11 @@ namespace MyPortal.Services
                     return new BadRequestObjectResult(Response.IsSuccessStatusCode);
                 }
             }
+        }
+
+        public async Task<IActionResult> DownloadStatements(string No, DateRange DateRange)
+        {
+            return new OkObjectResult(DateRange);
         }
     }
 }

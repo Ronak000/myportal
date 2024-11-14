@@ -153,7 +153,8 @@ body {
       margin-left: 185px;
   }
   .logout-button {
-    margin-left: 300px;
+    margin-left: 0px;
+    margin-top: 10px;
 }
 }
 
@@ -177,6 +178,10 @@ body {
       margin-left: 0;
       margin-right: 0;
   }
+  .logout-button {
+ 
+    padding-left: 318px;
+}
 }
 
 @media (max-width: 480px) {
@@ -193,10 +198,36 @@ body {
   .logout-button {
       font-size: 14px;
       padding: 8px 12px;
+      padding-left: 165px;
   }
 
   .logout-button i {
       font-size: 16px;
   }
   
+}
+@media (max-width: 630px){
+  .logout-button{
+    padding-left: 255px;
+  }
+}
+@media (max-width: 550px){
+  .logout-button{
+    padding-left: 210px;
+  }
+}
+@media (max-width: 440px){
+  .logout-button{
+    padding-left: 160px;
+  }
+}
+@media (max-width: 380px){
+  .logout-button{
+    padding-left: 130px;
+  }
+}
+@media (max-width: 320px){
+  .logout-button{
+    padding-left: 100px;
+  }
 }

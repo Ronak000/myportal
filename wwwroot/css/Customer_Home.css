@@ -141,6 +141,14 @@
   font-size: 18px;
   cursor: pointer;
   color: #333;
+  background: red;
+  margin-left: 115px;
+  margin-right: 115px;
+  border-radius: 8px;
+}
+.close-btn:hover{
+  color: #e0f7f8;
+  /* background-color: rgba(248, 96, 96, 0.977); */
 }
 .modal-content h3 {
   margin-top: 0;
@@ -256,7 +264,25 @@ h2 {
   color: #333;
   font-weight: normal;
 }
+@media (max-width: 1024px) {
+  .sidebar {
+      width: 170px;
+      padding: 15px;
+      text-align: center;
+  }
+  
+  .content {
+      margin-left: 190px;
+  }
 
+  .ordertable {
+      margin-left: 185px;
+  }
+  .logout-button {
+    margin-left: 0px;
+    margin-top: 10px;
+}
+}
 @media (max-width: 768px) {
   .sidebar {
       width: 100px;
@@ -270,10 +296,48 @@ h2 {
   /* .content {
       margin-left: 80px;
   } */
-
+  .logout-button {
+    font-size: 12px;
+    padding: 8px;
+  }
+  .logout-button i {
+    margin-right: 4px; /* Space between icon and text */
+    font-size: 12px; /* Icon size */
+  }
   .user-details {
       grid-template-columns: 1fr; /* One-column grid on smaller screens */
   }
+}
+@media (max-width: 480px) {
+  .Customer_Home-container {
+    
+}
+  .sidebar {
+      position: relative;
+      width: 100%;
+      height: auto;
+      margin-bottom: 20px;
+  }
+  .sidebar ul li a {
+      font-size: 14px;
+      padding: 8px;
+  }
+
+  .styled-table th, .styled-table td {
+      padding: 10px 8px;
+      font-size: smaller;
+  }
+
+  .logout-button {
+      font-size: 14px;
+      padding: 8px 12px;
+      padding-left: 165px;
+  }
+
+  .logout-button i {
+      font-size: 16px;
+  }
+  
 }
 .loading {
   position: fixed;
