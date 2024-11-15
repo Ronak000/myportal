@@ -11,7 +11,7 @@
 }
 .Customer_Home-container {
   width: 100%;
- display: flex;
+ /* display: flex; */
   /* background-color: brown; */
 }
 /* .form-chnagepassword{
@@ -33,7 +33,8 @@
   position: fixed;
   height: 100%;
   display: flex;
-    flex-direction: column;
+  flex-direction: column;
+  transition: transform 0.3s ease;
 }
 
 .sidebar ul {
@@ -270,6 +271,7 @@ h2 {
       padding: 15px;
       text-align: center;
   }
+
   
   .content {
       margin-left: 190px;
@@ -287,6 +289,12 @@ h2 {
   .sidebar {
       width: 100px;
   }
+  .content {
+    margin-left: 115px;
+}
+.tile_container{
+  margin-left: 115px;
+}
 
   .sidebar ul li a {
       font-size: 12px;
@@ -309,8 +317,17 @@ h2 {
   }
 }
 @media (max-width: 480px) {
-  .Customer_Home-container {
-    
+  .content {
+    margin-left: 0px;
+}
+.tile_container{
+  width: 100%;
+}
+.tile{
+  margin-left: 0px;
+}
+.section{
+  margin-left: 25px;
 }
   .sidebar {
       position: relative;
@@ -331,7 +348,7 @@ h2 {
   .logout-button {
       font-size: 14px;
       padding: 8px 12px;
-      padding-left: 165px;
+      padding-left: 115px;
   }
 
   .logout-button i {
