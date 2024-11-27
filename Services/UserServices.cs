@@ -10,6 +10,7 @@ using NAV;
 using Microsoft.OData;
 using System.Xml.Linq;
 using Microsoft.OData.Edm;
+using System.IO.Compression;
 
 namespace MyPortal.Services
 {
@@ -17,12 +18,17 @@ namespace MyPortal.Services
     {
         private static List<ClientUser> cachedUsers;
         private static string accessToken;
+        private static DateTime tokenExpiry;
 
         public IConfiguration _configuration { get; }
         public IHttpContextAccessor _context { get; }
+        private readonly CustomerServices _customerServices;
+        private readonly VendorServices _vendorServices;
 
-        public UserServices(IConfiguration configuration, IHttpContextAccessor context)
+        public UserServices(IConfiguration configuration, IHttpContextAccessor context, CustomerServices customerServices, VendorServices vendorServices)
         {
+            _vendorServices = vendorServices;
+            _customerServices = customerServices;
             _configuration = configuration;
             _context = context;
         }
@@ -33,19 +39,31 @@ namespace MyPortal.Services
             var clientId = _configuration.GetSection("AzureAD").GetValue<string>("ClientId");
             var clientSecret = _configuration.GetSection("AzureAd").GetValue<string>("ClientSecret");
             // Get the access token
-            accessToken = await TokenManager.GetAccessTokenAsync(tenantId, clientId, clientSecret);
+            accessToken = await GetAccessTokenAsync(tenantId, clientId, clientSecret);
 
         }
+        public static async Task<string> GetAccessTokenAsync(string tenantId, string clientId, string clientSecret)
+        {
+            if (string.IsNullOrEmpty(accessToken) || tokenExpiry <= DateTime.UtcNow)
+            {
+                // Get a new access token
+                var newTokenResponse = await TokenManager.GetNewAccessTokenAsync(tenantId, clientId, clientSecret);
+                accessToken = newTokenResponse.access_token;
+                var currenttime = DateTime.UtcNow;
+                tokenExpiry = DateTime.UtcNow.AddSeconds(newTokenResponse.expires_in - 3539); // Token expiry buffer
+            }
+            return accessToken;
+        }
 
-        private async Task<List<ClientUser>> FetchUsersFromService(string accessToken)
+        private async Task<List<ClientUser>> FetchUsersFromService(string accessToken, string Email)
         {
             var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("CustomerLoginUrl");
-
+            string FilterUrl = $"{BCCustomerLoginApiUrl}/?$filter=Email eq '{Email}'";
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-                HttpResponseMessage response = await client.GetAsync(BCCustomerLoginApiUrl);
+                HttpResponseMessage response = await client.GetAsync(FilterUrl);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -63,30 +81,90 @@ namespace MyPortal.Services
 
         public async Task<IActionResult> LoginUser(string Email, string password)
         {
-
-            cachedUsers = await FetchUsersFromService(accessToken);
-
-            var user = cachedUsers.Where(u => u.Email == Email && u.Password == password).FirstOrDefault();
-            if (user != null)
+            // if (string.IsNullOrEmpty(accessToken) || tokenExpiry <= DateTime.UtcNow )
+            // {
+            //     var token = InitializeAsync();
+            //     accessToken = token.ToString();
+            // }
+            cachedUsers = await FetchUsersFromService(accessToken, Email);
+            bool value = false;
+            var Users = cachedUsers.Where(u => u.Email == Email).ToList();
+            if (Users.Count == 2)
             {
-                if (user.Temporary == false)
+                return new OkObjectResult(new { value = true, UsersData = Users });
+            }
+            else if (Users.Count == 1)
+            {
+                ClientUser User = Users[0];
+                if (User != null)
                 {
-                    var UserDetails = await GetUserDetailsFromWebService(user.No.ToString());
-
-                    if (UserDetails != null)
+                    if (User.Type == "Customer")
                     {
-                        return new OkObjectResult(UserDetails);
+                        if (User.Temporary == false)
+                        {
+                            if (User.Password == password)
+                            {
+                                var UserDetails = await GetCustomerDetails(User.No.ToString());
+
+                                if (UserDetails != null)
+                                {
+                                    UserDetails.Add("UserType", "Customer");
+                                    return new OkObjectResult(UserDetails);
+                                }
+                                else
+                                {
+                                    return new BadRequestObjectResult("Failed to retrieve user details");
+                                }
+                            }
+                            else
+                            {
+                                return new UnauthorizedObjectResult("Invalid username or password");
+                            }
+
+                        }
+                        else
+                        {
+                            // byte[] emailBytes = Encoding.UTF8.GetBytes(User.Email);
+                            // string email = Convert.ToBase64String(emailBytes);
+                            return new OkObjectResult(new { redirected = true, UsersData = Users });
+                            // return new RedirectToActionResult("Change_Password", "Home", new { email });
+                        }
+
                     }
                     else
                     {
-                        return new BadRequestObjectResult("Failed to retrieve user details");
+                        if (User.Temporary == false)
+                        {
+                            if (User.Password == password)
+                            {
+                                var UserDetails = await GetVendorDetails(User.No.ToString());
+
+                                if (UserDetails != null)
+                                {
+                                    UserDetails.Add("UserType", "Vendor");
+                                    return new OkObjectResult(UserDetails);
+                                }
+                                else
+                                {
+                                    return new BadRequestObjectResult("Failed to retrieve user details");
+                                }
+                            }
+                            else
+                            {
+                                return new UnauthorizedObjectResult("Invalid username or password");
+                            }
+
+                        }
+                        else
+                        {
+                            return new OkObjectResult(new { redirected = true, UsersData = Users });
+                        }
+
                     }
                 }
                 else
                 {
-                    byte[] emailBytes = Encoding.UTF8.GetBytes(Email);
-                    string email = Convert.ToBase64String(emailBytes);
-                    return new RedirectToActionResult("Change_Password", "Home", new { email });
+                    return new BadRequestObjectResult("User Data not found!");
                 }
             }
             else
@@ -94,46 +172,49 @@ namespace MyPortal.Services
                 return new UnauthorizedObjectResult("Invalid username or password");
             }
         }
-        private async Task<IActionResult> GetUserDetailsFromWebService(string UniqueNo)
+        public async Task<Dictionary<string, Object>> GetCustomerDetails(string UniqueNo)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("CustomerDetailsUrl");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=No eq '{UniqueNo}'";
-            using (HttpClient client = new HttpClient())
-            {
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                HttpResponseMessage response = await client.GetAsync(FilterUrl);
+            return await _customerServices.CustomerDetails(UniqueNo, accessToken);
+        }
+        public async Task<Dictionary<string, Object>> GetVendorDetails(string UniqueNo)
+        {
 
-                if (response.IsSuccessStatusCode)
+            return await _vendorServices.VendorDetails(UniqueNo, accessToken);
+        }
+        public async Task<IActionResult> CheckUSerExist(string email)
+        {
+            cachedUsers = await FetchUsersFromService(accessToken, email);
+            if (cachedUsers.Count == 2)
+            {
+                return new OkObjectResult(new { value = true, UsersData = cachedUsers });
+            }
+            else
+            {
+                var IsUserExist = cachedUsers.FirstOrDefault(x => x.Email == email);
+                if (IsUserExist != null)
                 {
-                    var ResponseData = await response.Content.ReadAsStringAsync();
-                    var CustomerData = JsonDocument.Parse(ResponseData);
-                    var Customer = CustomerData.RootElement.GetProperty("value");
-                    return new OkObjectResult(Customer);
+                    return await GetTempPassword(IsUserExist.Type, IsUserExist.Email);
+
                 }
                 else
                 {
-                    Console.WriteLine("Failed to retrieve user details one: " + response.StatusCode);
-                    return null;
+                    return new BadRequestObjectResult("Enter business central email id to change password");
                 }
             }
         }
-        public async Task<bool> CheckUSerExist(string email)
-        {
-            cachedUsers = await FetchUsersFromService(accessToken);
-            var IsUserExist = cachedUsers.Any(x => x.Email == email);
-            return IsUserExist;
-        }
 
-        public async Task<bool> GetTempPassword(string Email)
+        public async Task<IActionResult> GetTempPassword(string Type, string Email)
         {
 
             var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
             string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:GenerateTempPassword";
+            int Val = Type == "Customer" ? 0 : 1;
             var SoapXml = $@"
                     <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
                     <soapenv:Header/>
                     <soapenv:Body>
                         <urn:GenerateTempPassword>
+                            <urn:type_iEnum>{Val}</urn:type_iEnum>
                             <urn:email_iTxt>{Email}</urn:email_iTxt>
                         </urn:GenerateTempPassword>
                     </soapenv:Body>
@@ -157,27 +238,28 @@ namespace MyPortal.Services
                 {
                     var Data = await Response.Content.ReadAsStringAsync();
                     var RootElement = XElement.Parse(Data);
-                    var IsSent = bool.Parse(RootElement.Value);
-                    return IsSent;
+                    var IsSent = RootElement.Value;
+                    return new OkObjectResult(IsSent);
                 }
                 else
                 {
-                    Console.WriteLine("Error while sending temporary password:" + Response.IsSuccessStatusCode);
-                    return false;
+                    return new BadRequestObjectResult("Error while sending temporary password:" + Response.IsSuccessStatusCode);
                 }
             }
 
         }
 
-        public async Task<bool> GetChangePassword(string email, string password)
+        public async Task<bool> GetChangePassword(string email, string password, string type)
         {
             var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
             string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:ChangePassword";
+            int Val = type == "Customer" ? 0 : 1;
             var SoapXml = $@"<soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' 
                             xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
                                 <soapenv:Header/>
                                 <soapenv:Body>
                                     <urn:ChangePassword>
+                                        <urn:type_iEnum>{Val}</urn:type_iEnum>
                                         <urn:email_iTxt>{email}</urn:email_iTxt>
                                         <urn:newPass>{password}</urn:newPass>
                                     </urn:ChangePassword>
@@ -211,52 +293,22 @@ namespace MyPortal.Services
             }
 
         }
-        public async Task<IActionResult> GetOrders(string No)
+        public async Task<IActionResult> GetCustomerOrders(string No)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesOrder");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
-            using (HttpClient client = new HttpClient())
-            {
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                HttpResponseMessage response = await client.GetAsync(FilterUrl);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var ResponseData = await response.Content.ReadAsStringAsync();
-                    var Orders = JsonDocument.Parse(ResponseData);
-                    var OrdersData = Orders.RootElement.GetProperty("value");
-                    return new OkObjectResult(OrdersData);
-                }
-                else
-                {
-                    Console.WriteLine("Failed to retrieve orders: " + response.StatusCode);
-                    return null;
-                }
-            }
+            return await _customerServices.CustomerOrders(No, accessToken);
+        }
+        public async Task<IActionResult> GetVendorOrders(string No)
+        {
+            return await _vendorServices.VendorOrders(No, accessToken);
         }
 
-        public async Task<IActionResult> GetInvoices(string No)
+        public async Task<IActionResult> GetCustomerInvoices(string No)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesInvoice");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
-            using (HttpClient client = new HttpClient())
-            {
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                HttpResponseMessage response = await client.GetAsync(FilterUrl);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    var ResponseData = await response.Content.ReadAsStringAsync();
-                    var Orders = JsonDocument.Parse(ResponseData);
-                    var OrdersData = Orders.RootElement.GetProperty("value");
-                    return new OkObjectResult(OrdersData);
-                }
-                else
-                {
-                    Console.WriteLine("Failed to retrieve orders: " + response.StatusCode);
-                    return null;
-                }
-            }
+            return await _customerServices.CustomerInvoices(No, accessToken);
+        }
+        public async Task<IActionResult> GetVendorInvoices(string No)
+        {
+            return await _vendorServices.VendorInvoices(No, accessToken);
         }
         public async Task<IActionResult> GetEarliestPaymentDate(string No)
         {
@@ -292,7 +344,7 @@ namespace MyPortal.Services
                     var Data = await Response.Content.ReadAsStringAsync();
                     var RootElement = XElement.Parse(Data);
                     var Date = RootElement.Value.ToString();
-                    return new OkObjectResult(new { Date =Date});
+                    return new OkObjectResult(new { Date = Date });
                 }
                 else
                 {
@@ -378,8 +430,8 @@ namespace MyPortal.Services
                 {
                     var Data = await Response.Content.ReadAsStringAsync();
                     var RootElement = XElement.Parse(Data);
-                    var IsDownload = RootElement.Value;
-                    return new OkObjectResult(new { base64 = IsDownload});
+                    var Base64String = RootElement.Value;
+                    return new OkObjectResult(new { base64 = Base64String });
                 }
                 else
                 {
@@ -421,8 +473,8 @@ namespace MyPortal.Services
                 {
                     var Data = await Response.Content.ReadAsStringAsync();
                     var RootElement = XElement.Parse(Data);
-                    var IsDownload = RootElement.Value;
-                    return new OkObjectResult(new { base64 = IsDownload});
+                    var Base64String = RootElement.Value;
+                    return new OkObjectResult(new { base64 = Base64String });
                 }
                 else
                 {
@@ -434,7 +486,205 @@ namespace MyPortal.Services
 
         public async Task<IActionResult> DownloadStatements(string No, DateRange DateRange)
         {
-            return new OkObjectResult(DateRange);
+            var StartDate = DateRange.StartDate.ToString("yyyy-MM-dd");
+            var EndDate = DateRange.EndDate.ToString("yyyy-MM-dd");
+            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
+            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadCustomerStatement";
+            var SoapXml = $@"
+            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
+                <soapenv:Header/>
+                    <soapenv:Body>
+                        <urn:DownloadCustomerStatement>
+                            <urn:custNo>{No}</urn:custNo>
+                            <urn:startDate>{StartDate}</urn:startDate>
+                            <urn:endDate>{EndDate}</urn:endDate>
+                        </urn:DownloadCustomerStatement>
+                    </soapenv:Body>
+            </soapenv:Envelope>
+            ";
+
+
+            using (HttpClient client = new HttpClient())
+            {
+                var Request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri(BCCustomerLoginApiUrl),
+                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
+                };
+                Request.Headers.Add("SOAPAction", SOAPAction);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                HttpResponseMessage Response = await client.SendAsync(Request);
+
+                if (Response.IsSuccessStatusCode)
+                {
+                    var Data = await Response.Content.ReadAsStringAsync();
+                    var RootElement = XElement.Parse(Data);
+                    var Base64String = RootElement.Value;
+                    return new OkObjectResult(new { base64 = Base64String });
+                }
+                else
+                {
+                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
+                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
+                }
+            }
+        }
+
+        public async Task<IActionResult> GetCustomerQuates(string No)
+        {
+            return await _customerServices.CustomerQuates(No, accessToken);
+        }
+        public async Task<IActionResult> GetVendorQuates(string No)
+        {
+            return await _vendorServices.VendorQuates(No, accessToken);
+        }
+
+        public async Task<IActionResult> DownloadQuates(string QuateNo)
+        {
+            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
+            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadSalesQuoteReport";
+            var SoapXml = $@"
+           <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <urn:DownloadSalesQuoteReport>
+                        <urn:salesQuoteNo_iCod>{QuateNo}</urn:salesQuoteNo_iCod>
+                    </urn:DownloadSalesQuoteReport>
+                </soapenv:Body>
+            </soapenv:Envelope>";
+
+
+            using (HttpClient client = new HttpClient())
+            {
+                var Request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri(BCCustomerLoginApiUrl),
+                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
+                };
+                Request.Headers.Add("SOAPAction", SOAPAction);
+                // Request.Headers.Add("Accept", "application/pdf");
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                HttpResponseMessage Response = await client.SendAsync(Request);
+
+                if (Response.IsSuccessStatusCode)
+                {
+                    var Data = await Response.Content.ReadAsStringAsync();
+                    var RootElement = XElement.Parse(Data);
+                    var Base64String = RootElement.Value;
+                    return new OkObjectResult(new { base64 = Base64String });
+                }
+                else
+                {
+                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
+                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
+                }
+            }
+        }
+
+        public async Task<IActionResult> GetCustomerSalesCreditMemo(string No)
+        {
+            return await _customerServices.CustomerSalesCreditMemo(No, accessToken);
+        }
+        public async Task<IActionResult> GetVendorSalesCreditMemo(string No)
+        {
+            return await _vendorServices.VendorSalesCreditMemo(No, accessToken);
+        }
+
+        public async Task<IActionResult> DownloadSalesCreditMemos(string SalesCreditMemoNo)
+        {
+            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
+            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadSalesCreditMemoReport";
+            var SoapXml = $@"
+           <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
+                <soapenv:Header/>
+                <soapenv:Body>
+                    <urn:DownloadSalesCreditMemoReport>
+                        <urn:salesCreditMemoNo_iCod>{SalesCreditMemoNo}</urn:salesCreditMemoNo_iCod>
+                    </urn:DownloadSalesCreditMemoReport>
+                </soapenv:Body>
+            </soapenv:Envelope>";
+
+
+            using (HttpClient client = new HttpClient())
+            {
+                var Request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri(BCCustomerLoginApiUrl),
+                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
+                };
+                Request.Headers.Add("SOAPAction", SOAPAction);
+                // Request.Headers.Add("Accept", "application/pdf");
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                HttpResponseMessage Response = await client.SendAsync(Request);
+
+                if (Response.IsSuccessStatusCode)
+                {
+                    var Data = await Response.Content.ReadAsStringAsync();
+                    var RootElement = XElement.Parse(Data);
+                    var Base64String = RootElement.Value;
+                    return new OkObjectResult(new { base64 = Base64String });
+                }
+                else
+                {
+                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
+                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
+                }
+            }
+        }
+
+        public async Task<IActionResult> DownloadVendorDetails(string No)
+        {
+            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
+            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadVendorDetails";
+            var SoapXml = $@"
+            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
+                <soapenv:Header/>
+                    <soapenv:Body>
+                        <urn:DownloadVendorDetails>
+                            <urn:vendorNo>{No}</urn:vendorNo>
+                        </urn:DownloadVendorDetails>
+                    </soapenv:Body>
+            </soapenv:Envelope>
+            ";
+
+
+            using (HttpClient client = new HttpClient())
+            {
+                var Request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri(BCCustomerLoginApiUrl),
+                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
+                };
+                Request.Headers.Add("SOAPAction", SOAPAction);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                HttpResponseMessage Response = await client.SendAsync(Request);
+
+                if (Response.IsSuccessStatusCode)
+                {
+                    var Data = await Response.Content.ReadAsStringAsync();
+                    var RootElement = XElement.Parse(Data);
+                    var Base64String = RootElement.Value;
+                    return new OkObjectResult(new { base64 = Base64String });
+                }
+                else
+                {
+                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
+                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
+                }
+            }
         }
     }
+}
+public class UserInfo
+{
+    public IActionResult UserDetails { get; set; }
+    public string Type { get; set; }
 }

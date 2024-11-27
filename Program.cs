@@ -41,6 +41,8 @@ public class Program
         builder.Services.AddScoped<UserServices>();
         builder.Services.AddScoped<TokenManager>();
         builder.Services.AddScoped<AccountServices>();
+        builder.Services.AddScoped<CustomerServices>();
+        builder.Services.AddScoped<VendorServices>();
 
         // sql server connection string
         builder.Services.AddDbContext<DatabaseContext>(option =>

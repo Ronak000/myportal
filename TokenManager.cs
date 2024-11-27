@@ -1,27 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace MyPortal
 {
     public class TokenManager
     {
-        private static string accessToken;
-        private static DateTime tokenExpiry;
-
-        public static async Task<string> GetAccessTokenAsync(string tenantId, string clientId, string clientSecret)
-        {
-            if (string.IsNullOrEmpty(accessToken) || tokenExpiry <= DateTime.UtcNow)
-            {
-                // Get a new access token
-                var newTokenResponse = await GetNewAccessTokenAsync(tenantId, clientId, clientSecret);
-                accessToken = newTokenResponse;
-                // tokenExpiry = DateTime.UtcNow.AddSeconds(newTokenResponse.expires_in - 60); // Token expiry buffer
-            }
-            return accessToken;
-        }
-
-        private static async Task<string> GetNewAccessTokenAsync(string tenantId, string clientId, string clientSecret)
+        public static async Task<Token> GetNewAccessTokenAsync(string tenantId, string clientId, string clientSecret)
         {
             var token = await GetTokenAsync(tenantId, clientId, clientSecret);
 
@@ -35,7 +22,7 @@ namespace MyPortal
                 return null;
             }
         }
-        static async Task<string> GetTokenAsync(string tenantId, string clientId, string clientSecret)
+        static async Task<Token> GetTokenAsync(string tenantId, string clientId, string clientSecret)
         {
             var tokenEndpoint = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
 
@@ -54,8 +41,8 @@ namespace MyPortal
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
-                    var tokenResult = System.Text.Json.JsonDocument.Parse(json);
-                    return tokenResult.RootElement.GetProperty("access_token").GetString();
+                    var tokenResult = JsonConvert.DeserializeObject<Token>(json);
+                    return tokenResult;
                 }
                 else
                 {
@@ -65,4 +52,10 @@ namespace MyPortal
             }
         }
     }
+}
+public class Token
+{
+    public string token_type { get; set; }
+    public int expires_in { get; set; }
+    public string  access_token{ get; set; }
 }

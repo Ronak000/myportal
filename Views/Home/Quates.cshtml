@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "Invoices";
+    ViewData["Title"] = "Quates";
 }
 @inject IConfiguration Configuration
   @{
@@ -15,7 +15,6 @@
 
     <link rel="stylesheet" href="~/css/Orders.css" asp-append-version="true" />
 
-
 </head>
 
 <body>
@@ -29,8 +28,8 @@
             <ul>
                 <li><a href="@($"{API_BASE_URL}")/Home/Customer_Home"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
                 <li><a href="@($"{API_BASE_URL}")/Home/Orders"><i class="fas fa-users me-2"></i>Orders</a></li>
-                <li><a href="#" id="Invoice-link"><i class="fa-solid fa-file-lines me-2"></i>Invoices</a></li>
-                <li><a href="@($"{API_BASE_URL}")/Home/Quates"><i class="fa-solid fa-pen-to-square me-2"></i>Quates</a></li>
+                <li><a href="@($"{API_BASE_URL}")/Home/Invoices"><i class="fa-solid fa-file-lines me-2"></i>Invoices</a></li>
+                <li><a href="#" id="Quate-link"><i class="fa-solid fa-pen-to-square me-2"></i>Quates</a></li>
                 <li><a href="@($"{API_BASE_URL}")/Home/Credit_Memo"><i class="fa-solid fa-book me-2"></i>Credit Memo</a></li>
             </ul>
             <button class="logout-button" onclick="logout()">
@@ -40,11 +39,11 @@
     </div>
     <main class="content">
         <div class="header">
-            <h2>Invoice Details</h2>
+            <h2>Quates Details</h2>
         </div>
     </main>
     <div class="ordertable">
-        <table class="styled-table" id="invoiceTable">
+        <table class="styled-table" id="quateTable">
             <thead>
                 <tr>
                     <th>No.</th>
@@ -113,12 +112,13 @@
                 .catch(error => {
                     console.error("Logout error:", error);
                 });
-        }
+        }   
         async function fetchDataAndPopulateTable() {
-            console.log("invoices fetching");
+
             try {
                 // Retrieve and parse data from sessionStorage
-                const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Invoices?No=${UniqueNo}&Type=${UserType}`);
+                const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Quates?No=${UniqueNo}&Type=${UserType}`);
+
                 if (!response.ok) {
                     throw new Error(`Error: ${response.status}`);
                 }
@@ -128,7 +128,7 @@
 
                 if (data && data.length > 0) {
                     // Get the table body element
-                    const tableBody = document.getElementById("invoiceTable").getElementsByTagName("tbody")[0];
+                    const tableBody = document.getElementById("quateTable").getElementsByTagName("tbody")[0];
                     console.log(tableBody);
 
                     // Clear any existing rows
@@ -157,44 +157,50 @@
                 }
                 else {
                     // If no data, display a message
-                    document.getElementById("invoiceTable").getElementsByTagName("tbody")[0].innerHTML = "<tr><td colspan='8'>No data available</td></tr>";
+                    document.getElementById("quateTable").getElementsByTagName("tbody")[0].innerHTML = "<tr><td colspan='8'>No data available</td></tr>";
                 }
             }
 
             catch (error) {
                 console.error("Error fetching data:", error);
-                const tableBody = document.getElementById("invoiceTable").getElementsByTagName("tbody")[0];
+                const tableBody = document.getElementById("quateTable").getElementsByTagName("tbody")[0];
                 tableBody.innerHTML = "<tr><td colspan='8'>Error fetching data</td></tr>";
             }
         }
         // Function to call the API to download the report
-        async function downloadReport(invoiceNo) {
+        async function downloadReport(orderNo) {
             // Call the API to get the Base64-encoded PDF content
-            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadInvoices/${invoiceNo}`, {
+            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadQuates/${orderNo}`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' }
             });
 
             if (response.ok) {
                 const data = await response.json();
+                console.log(data.base64);
+                console.log(data.success);
 
                 // Assuming the response JSON structure is { success: true, base64Pdf: "Base64StringHere" }
                 if (data.base64) {
                     // Decode the Base64 string
+                    console.log("base64:" + data.base64);
                     const byteCharacters = atob(data.base64);
+                    console.log("bytechar:" + byteCharacters);
 
                     // Convert the byte characters to an array of bytes
                     const byteNumbers = Array.from(byteCharacters).map(char => char.charCodeAt(0));
                     const byteArray = new Uint8Array(byteNumbers);
+                    console.log("bytearray:" + byteArray);
 
                     // Create a Blob from the byte array and specify the MIME type as PDF
                     const blob = new Blob([byteArray], { type: 'application/pdf' });
+                    console.log("blob:" + blob);
 
                     // Create a URL for the Blob and initiate a download
                     const downloadUrl = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = downloadUrl;
-                    link.download = `Order_${invoiceNo}.pdf`;  // The name of the file to be downloaded
+                    link.download = `Order_${orderNo}.pdf`;  // The name of the file to be downloaded
                     document.body.appendChild(link);
                     link.click();
 
@@ -210,7 +216,7 @@
         }
         window.addEventListener("load", fetchDataAndPopulateTable);
 
-        document.getElementById("Invoice-link").addEventListener("click", function (event) {
+        document.getElementById("Quate-link").addEventListener("click", function (event) {
             event.preventDefault(); // Prevent the default link action
             document.getElementById("loading").style.display = "flex"; // Show loading indicator
             setTimeout(() => {

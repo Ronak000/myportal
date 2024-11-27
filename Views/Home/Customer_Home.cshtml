@@ -1,6 +1,10 @@
 ﻿@{
   ViewData["Title"] = "Home";
 }
+@inject IConfiguration Configuration
+@{
+  var API_BASE_URL = $"{Configuration["API_BASE_URL"]}";
+}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -10,7 +14,13 @@
   <title>@ViewData["Title"] - MyPortal</title>
 
   <link rel="stylesheet" href="~/css/Customer_Home.css" asp-append-version="true" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
 
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
 </head>
 
@@ -20,132 +30,285 @@
     <div class="spinner"></div>
     <p>Loading...</p>
   </div>
-  <div class="Customer_Home-container">
+  @* <button id="toggleSidebar" class="btn btn-primary toggle-button" type="button">
+    <i class="fas fa-bars"></i>
+  </button> *@
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Sidebar -->
+      <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column">
+        <ul class="nav flex-column">
+          <li class="nav-item mt-3">
+            <a href="#" id="Customer_Home-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a href="@($"{API_BASE_URL}/Home/Orders")"><i class="fas fa-users me-2"></i>Orders</a>
+          </li>
+          <li class="nav-item">
+            <a href="@($"{API_BASE_URL}/Home/Invoices")"><i class="fa-solid fa-file-lines me-2"></i>Invoices</a>
+          </li>
+          <li class="nav-item">
+            <a href="@($"{API_BASE_URL}/Home/Quates")"><i class="fa-solid fa-pen-to-square me-2"></i>Quates</a>
+          </li>
+          <li class="nav-item">
+            <a href="@($"{API_BASE_URL}/Home/Credit_Memo")"><i class="fa-solid fa-book me-2"></i>Credit Memo</a>
+          </li>
+        </ul>
+        <button class="mt-auto mb-2 logout-button" onclick="logout()">
+          <i class="fas fa-sign-out-alt me-2"></i> Logout
+        </button>
+      </nav>
 
-    <nav class="sidebar">
-      <ul>
-        <li><a href="#" id="Customer_Home-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+      <!-- Main Content -->
+      <main class="col-md-9 col-lg-10 bg-light py-3">
+        <!-- Header -->
+        <div class="header_container">
+          <div class="header mb-4">
+            <h2>Welcome, <span id="headername">Guest</span>!</h2>
+            <!-- <button class="btn btn-primary" onclick="openModal()">Download Statement</button> -->
+          </div>
+          <div class="header mb-4">
+            <h3>Customer Details</h3>
+            <button class="statement-button" id="customer_statement" onclick="openModal()">Download Statement</button>
+            <button class="statement-button" id="vendor_details" onclick="DownloadVendorDetails()">Download Vendor Details</button>
+            @* <button class="statement-button" data-bs-toggle="modal" data-bs-target="#download_statement">Download Statement</button> *@
 
-        <li><a href="https://localhost:7003/Home/Orders"><i class="fas fa-users"></i> Orders</a></li>
-        <li><a href="https://localhost:7003/Home/Invoices"><i class="fa-solid fa-file-lines"></i> Invoices</a></li>
-      </ul>
-      <button class="logout-button" onclick="logout()">
-        <i class="fas fa-sign-out-alt"></i> Logout
-      </button>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="content">
-      <div class="header">
-        <div class="header-row">
-          <h2>Welcome, <span id="headername">Guest</span>!</h2>
+          </div>
         </div>
-        <div class="header-row">
-          <h2>Customer Details</h2>
-          <button class="statement-button" onclick="openModal()">Download Statement</button>
+        <!-- Modal for date selection -->
+        <div id="dateModal" class="modal">
+          <div class="smallmodal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3>Select Date Range</h3>
+            <label for="startDate">Start Date:</label>
+            <input type="date" id="startDate" onchange="validateDates()">
+            <label for="endDate">End Date:</label>
+            <input type="date" id="endDate" onchange="validateDates()" max="">
+            <button onclick="downloadCustomerStatement()">Download</button>
+          </div>
         </div>
-      </div>
-    </main>
 
-    <!-- Modal for date selection -->
-    <div id="dateModal" class="modal">
-      <div class="modal-content">
-        <span class="close-btn" onclick="closeModal()">&times;</span>
-        <h3>Select Date Range</h3>
-        <label for="startDate">Start Date:</label>
-        <input type="date" id="startDate" onchange="validateDates()">
-        <label for="endDate">End Date:</label>
-        <input type="date" id="endDate" onchange="validateDates()" max="">
-        <button onclick="downloadStatement()">Download</button>
-      </div>
-    </div>
+        <!-- Modal -->
+        @* <div class="modal fade" id="download_statement" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5" id="exampleModalLabel">Select Date Range</h1>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <label for="startDate">Start Date:</label>
+              <input type="date" id="startDate" onchange="validateDates()">
+              <label for="endDate">End Date:</label>
+              <input type="date" id="endDate" onchange="validateDates()" max="">
+            </div>
+            <div class="modal-footer">
+              <button type="button" onclick="downloadStatement()" class="btn btn-primary">Download</button>
+            </div>
+          </div>
+        </div>
+      </div> *@
 
-  </div>>
+
+        <!-- Tiles -->
+        <div class="row g-4">
+          <div class="col-sm-6 col-md-3">
+            <div class="tile">
+              <h4>Sales Orders</h4>
+              <p class="count" id="orderCount">-</p>
+              <div class="underline"></div>
+              <div class="arrow">&gt;</div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-md-3">
+            <div class="tile">
+              <h4>Invoices</h4>
+              <p class="count" id="invoiceCount">-</p>
+              <div class="underline"></div>
+              <div class="arrow">&gt;</div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-md-3">
+            <div class="tile">
+              <h4>Next Due Payment Date</h4>
+              <p class="count" id="earliestpaymentdate">-</p>
+              <div class="underline"></div>
+              <div class="arrow">&gt;</div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-md-3">
+            <div class="tile">
+              <h4>Next Due Payment Amount</h4>
+              <p class="count" id="earliestpaymentamount">-</p>
+              <div class="underline"></div>
+              <div class="arrow">&gt;</div>
+            </div>
+          </div>
+        </div>
 
 
-  <div class="tile_container">
-    <div class="tile">
-      <h2>Sales Orders</h2>
-      <p class="count" id="orderCount">-</p>
-      <div class="arrow">></div>
-    </div>
-    <div class="tile">
-      <h2>Invoices</h2>
-      <p class="count" id="invoiceCount">-</p>
-      <div class="arrow">></div>
-    </div>
-    <div class="tile">
-      <h2>Next Due Payment Date</h2>
-      <p class="count" id="earliestpaymentdate">-</p>
-      <div class="arrow">></div>
-    </div>
-    <div class="tile">
-      <h2>Next Due Payment Amount</h2>
-      <p class="count" id="earliestpaymentamount">-</p>
-      <div class="arrow">></div>
+        <!-- General Information -->
+        <div class="container-fluid my-4">
+          <!-- General Information Section -->
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+              <h3 class="h5 text-dark">General Information</h3>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <!-- First Column -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">No:</p>
+                    <p class="mb-0 text-muted value" id="no">Loading...</p>
+                  </div>
+                </div>
+                <!-- Second Column -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Name:</p>
+                    <p class="mb-0 text-muted value" id="name">Loading...</p>
+                  </div>
+                </div>
+                <!-- Third Column -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Balance:</p>
+                    <p class="mb-0 text-muted value" id="balance">Loading...</p>
+                  </div>
+                </div>
+                <!-- Fourth Column -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Balance Due:</p>
+                    <p class="mb-0 text-muted value" id="balance_due">Loading...</p>
+                  </div>
+                </div>
+                <!-- Fifth Column -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Credit Limit ($):</p>
+                    <p class="mb-0 text-muted value" id="credit_limit">Loading...</p>
+                  </div>
+                </div>
+                <!-- Sixth Column -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Total Sales:</p>
+                    <p class="mb-0 text-muted value" id="total_sales">Loading...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Address Section -->
+          <div class="card shadow-sm">
+            <div class="card-header bg-white">
+              <h3 class="h5 text-dark">Address</h3>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <!-- Address -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Address:</p>
+                    <p class="mb-0 text-muted value" id="address">Loading...</p>
+                  </div>
+                </div>
+                <!-- Country/Region Code -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Country/Region Code:</p>
+                    <p class="mb-0 text-muted value" id="country_code">Loading...</p>
+                  </div>
+                </div>
+                <!-- Phone No -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Phone No:</p>
+                    <p class="mb-0 text-muted value" id="phone_no">Loading...</p>
+                  </div>
+                </div>
+                <!-- Location Code -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Location Code:</p>
+                    <p class="mb-0 text-muted value" id="location_code">Loading...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
     </div>
   </div>
-  <!-- User Details -->
-  <div class="section">
-    <h3>General Information</h3>
-    @* <div class="user-info-card"> *@
-    <div class="user-details">
-      <div class="user-detail-item">
-        <p class="key">No:</p>
-        <p class="value" id="no">Loading...</p>
-      </div>
-      <div class="user-detail-item">
-        <p class="key">Name:</p>
-        <p class="value" id="name">Loading...</p>
-      </div>
-      <div class="user-detail-item">
-        <p class="key">Balance:</p>
-        <p class="value" id="balance">Loading...</p>
-      </div>
-      <div class="user-detail-item">
-        <p class="key">Balance Due:</p>
-        <p class="value" id="balance_due">Loading...</p>
-      </div>
-      <div class="user-detail-item">
-        <p class="key">Credit Limit ($):</p>
-        <p class="value" id="credit_limit">Loading...</p>
-      </div>
-      <div class="user-detail-item">
-        <p class="key">Total Sales:</p>
-        <p class="value" id="total_sales">Loading...</p>
-      </div>
-    </div>
-  </div>
-  <!-- end user info card-->
-  <div class="section">
-    <h3>Address</h3>
-    @* <div class="user-info-card"> *@
-    <div class="user-details">
-      <div class="user-detail-item">
-        <p class="key">Address:</p>
-        <p class="value" id="address">Loading...</p>
-      </div>
-      <div class="user-detail-item">
-        <p class="key">Country/Region Code:</p>
-        <p class="value" id="country_region_code">Loading...</p>
-      </div>
-      <div class="user-detail-item">
-        <p class="key">Phone No:</p>
-        <p class="value" id="phone_no">Loading...</p>
-      </div>
-      <div class="user-detail-item">
-        <p class="key">Location Code:</p>
-        <p class="value" id="location_code">Loading...</p>
-      </div>
-    </div>
-  </div>
-
 
 
 
   <script>
-    const UniqueNo = JSON.parse(sessionStorage.getItem("UniqueNo"));
+    const UniqueNo = sessionStorage.getItem("UniqueNo");
+    const UserType = sessionStorage.getItem("UserType");
+    @* document.getElementById('toggleSidebar').addEventListener('click', function () {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('active'); // Toggle the 'active' class
+    }); *@
+      document.addEventListener("DOMContentLoaded", function () {
+        if (UserType === "Vendor") {
+          // Remove or hide specific tiles for vendor login
+          document.getElementById("earliestpaymentdate").closest(".col-sm-6").style.display = "none";
+          document.getElementById("earliestpaymentamount").closest(".col-sm-6").style.display = "none";
+          const customer_statement_btn = document.getElementById("customer_statement");
+          if (customer_statement_btn) {
+            customer_statement_btn.style.display = "none";
+          }
+        }
+        else {
+          const vender_details_btn = document.getElementById("vendor_details");
+          if (vender_details_btn) {
+            vender_details_btn.remove();
+          }
+        }
+      });
+    async function DownloadVendorDetails() {
+      // Make API call with the selected date range
+      try {
+        const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadVendorDetails/${UniqueNo}`);
+
+        if (response.ok) {
+          const data = await response.json();
+
+          if (data.base64) {
+            const byteCharacters = atob(data.base64);
+
+            const byteNumbers = Array.from(byteCharacters).map(char => char.charCodeAt(0));
+            const byteArray = new Uint8Array(byteNumbers);
+
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            console.log("blob:" + blob);
+
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `${UniqueNo}_Statement_${startDate}_to_${endDate}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+
+            URL.revokeObjectURL(downloadUrl);
+            document.body.removeChild(link);
+          } else {
+            alert("File download failed.");
+          }
+        } else {
+          alert("Failed to retrieve the file.");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        alert("An error occurred while downloading the statement.");
+      }
+    }
     function openModal() {
       document.getElementById("dateModal").style.display = "block";
       // Set the maximum selectable date for today
@@ -174,7 +337,7 @@
         alert("End date cannot be earlier than start date.");
       }
     }
-    async function downloadStatement() {
+    async function downloadCustomerStatement() {
       const startDate = document.getElementById("startDate").value;
       const endDate = document.getElementById("endDate").value;
       const today = new Date().toISOString().split("T")[0];
@@ -189,7 +352,7 @@
       }
       // Make API call with the selected date range
       try {
-        const response = await fetch(`https://localhost:7003/api/Account/DownloadStatements/${UniqueNo}`, {
+        const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadStatements/${UniqueNo}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -198,19 +361,31 @@
         });
 
         if (response.ok) {
-          console.log("successful");
-          @* const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.style.display = "none";
-          a.href = url;
-          a.download = `Statement_${startDate}_to_${endDate}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url); *@
-          closeModal(); // Close popup after download
+          const data = await response.json();
+
+          if (data.base64) {
+            const byteCharacters = atob(data.base64);
+
+            const byteNumbers = Array.from(byteCharacters).map(char => char.charCodeAt(0));
+            const byteArray = new Uint8Array(byteNumbers);
+
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            console.log("blob:" + blob);
+
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `${UniqueNo}_Statement_${startDate}_to_${endDate}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+
+            URL.revokeObjectURL(downloadUrl);
+            document.body.removeChild(link);
+          } else {
+            alert("File download failed.");
+          }
         } else {
-          alert("Failed to download statement.");
+          alert("Failed to retrieve the file.");
         }
       } catch (error) {
         console.error("Error:", error);
@@ -220,6 +395,7 @@
     // Add an event listener for the back navigation
     window.addEventListener("popstate", function (event) {
       // Check if user is on the dashboard page
+      console.log(event);
       console.log("popstat called");
       debugger;
       sessionStorage.setItem("popstat_called", "true");
@@ -230,9 +406,9 @@
         // Clear session data or mark the user as logged out
         sessionStorage.clear();
         localStorage.clear();
-
+        history.back();
         // Redirect to login page
-        window.location.href = "https://localhost:7003/"; // Replace with your login URL
+        window.location.href = "@($"{API_BASE_URL}")"; // Replace with your login URL
       } else {
         // Prevent going back by pushing the current state again
         history.pushState(null, null, window.location.href);
@@ -243,13 +419,11 @@
     window.addEventListener("load", function () {
       history.pushState(null, null, window.location.href);
     });
-    
-
     // Function to fetch data and get the count
     async function fetchOrdersCount() {
       try {
         if (UniqueNo !== null) {
-          const response = await fetch(`https://localhost:7003/api/Account/Orders?No=${UniqueNo}`);
+          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Orders?No=${UniqueNo}&Type=${UserType}`);
 
           if (!response.ok) {
 
@@ -257,9 +431,9 @@
           }
           const data = await response.json();
 
-    @* sessionStorage.setItem("allorders", JSON.stringify(data)); *@
-        // Get the count of items in the array
-        const totalCount = data.length;
+          //sessionStorage.setItem("allorders", JSON.stringify(data));
+          // Get the count of items in the array
+          const totalCount = data.length;
 
           document.getElementById('orderCount').textContent = totalCount;
         }
@@ -272,7 +446,7 @@
     async function fetchInvoiceCount() {
       try {
         if (UniqueNo !== null) {
-          const response = await fetch(`https://localhost:7003/api/Account/Invoices?No=${UniqueNo}`);
+          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Invoices?No=${UniqueNo}&Type=${UserType}`);
 
           if (!response.ok) {
 
@@ -291,7 +465,7 @@
     async function fetchEarliestPaymentDate() {
       try {
         if (UniqueNo !== null) {
-          const response = await fetch(`https://localhost:7003/api/Account/EarliestPaymentDate?No=${UniqueNo}`);
+          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/EarliestPaymentDate?No=${UniqueNo}`);
 
           if (!response.ok) {
 
@@ -309,7 +483,7 @@
     async function fetchEarliestPaymentAmount() {
       try {
         if (UniqueNo !== null) {
-          const response = await fetch(`https://localhost:7003/api/Account/EarliestPaymentAmount?No=${UniqueNo}`);
+          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/EarliestPaymentAmount?No=${UniqueNo}`);
 
           if (!response.ok) {
 
@@ -340,7 +514,7 @@
       timeout = setTimeout(() => {
         alert("Session expired due to inactivity.");
         sessionStorage.clear();
-        window.location.href = "https://localhost:7003";
+        window.location.href = "@($"{API_BASE_URL}")";
       }, 300000);
     }
 
@@ -360,7 +534,6 @@
     document.addEventListener("DOMContentLoaded", function () {
       // Fetch user data from sessionStorage
       const apiData = JSON.parse(sessionStorage.getItem("userData"));
-
       // Function to update the UI with fetched data
       function updateUserInfo() {
         if (apiData) {
@@ -375,7 +548,7 @@
           document.getElementById("total_sales").textContent = apiData.Sales_LCY || "N/A";
           // address data
           document.getElementById("address").textContent = apiData.Name || "N/A";
-          document.getElementById("country_region_code").textContent = apiData.Country_Region_Code || "N/A";
+          document.getElementById("country_code").textContent = apiData.Country_Region_Code || "N/A";
           document.getElementById("phone_no").textContent = apiData.Phone_No || "N/A";
           document.getElementById("location_code").textContent = apiData.Location_Code || "N/A";
 
@@ -401,7 +574,7 @@
     function logout() {
       // Clear the token or session data Or localStorage, depending on where the token is stored
       sessionStorage.removeItem("userData");
-      fetch("https://localhost:7003/Home/Logout", {
+      fetch("@($"{API_BASE_URL}")/Home/Logout", {
         method: "POST",
         credentials: "include"  // Include cookies if necessary for the server session
       })
@@ -410,7 +583,7 @@
             // Redirect to login page after successful logout
             sessionStorage.removeItem("isLoggedIn");
             sessionStorage.clear();
-            window.location.href = "https://localhost:7003";
+            window.location.href = "@($"{API_BASE_URL}")";
           } else {
             console.error("Failed to log out");
           }
@@ -426,7 +599,13 @@
 
   </script>
 
-  <script src="~/assets/js/plugin/webfont/webfont.min.js"></script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+    crossorigin="anonymous"></script>
 </body>
 
 </html>

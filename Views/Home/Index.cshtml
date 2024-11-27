@@ -1,7 +1,10 @@
 ﻿@{
   ViewData["Title"] = "Login";
 }
-
+@inject IConfiguration Configuration
+@{
+  var API_BASE_URL = Configuration.GetValue<string>("API_BASE_URL");
+}
 
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" />
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
@@ -41,12 +44,202 @@
 
     <div id="toast" class="toast">Invalid username or password</div>
   </div>
-
+  <div id="modalOverlay"></div>
+  <div id="roleModal">
+    <h3>Select Your Role</h3>
+    <button id="customerBtn">Customer</button>
+    <button id="vendorBtn">Vendor</button>
+  </div>
 
 </div>
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+  @* @using Microsoft.Extensions.Configuration *@
+
+  @* var API_BASE_URL = "@Configuration["API_BASE_URL"]"; *@
+
+  var globalClientUsers = [];
+  var CheckPassword;
+  let IsForTempPassword = false;
+  var TempPasswordUsers = [];
+  const loadingOverlay = document.getElementById("loading");
+  // Show the role selection modal
+  function showRoleModal() {
+    document.getElementById('roleModal').style.display = 'block';
+    document.getElementById('modalOverlay').style.display = 'block';
+  }
+
+  // Hide the role selection modal
+  function hideRoleModal() {
+    document.getElementById('roleModal').style.display = 'none';
+    document.getElementById('modalOverlay').style.display = 'none';
+  }
+
+  // Handle role selection
+  document.getElementById('customerBtn').addEventListener('click', () => {
+    hideRoleModal();
+    callRoleSpecificApi('Customer');
+  });
+
+  document.getElementById('vendorBtn').addEventListener('click', () => {
+    hideRoleModal();
+    callRoleSpecificApi('Vendor');
+  });
+
+  // Call role-specific API
+  function callRoleSpecificApi(role) {
+    loadingOverlay.style.display = "flex";
+    if (IsForTempPassword === true) {
+      console.log("role: " + role);
+      console.log("TempPasswordUsers: " + TempPasswordUsers);
+
+      const FindUser = JSON.parse(TempPasswordUsers);
+      var FindUserType = FindUser.find(z => z.type === role);
+      console.log("FindUserType: " + FindUserType);
+      var encodedEmail = btoa(FindUserType.email);
+      TempPasswordUsers = [];
+      IsForTempPassword = false;
+      fetch(`@($"{API_BASE_URL}")/api/Account/TypeBaseForgetPassword?Type=${role}&Email=${encodedEmail}`)
+        .then(response => {
+          if (!response.ok) {
+            console.log(response);
+            loadingOverlay.style.display = "none";
+            throw new Error("Network response was not ok");
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data) {
+            // Success - Temp password generated
+            Toastify({
+              text: "A temporary password has been sent to your email.",
+              duration: 3000,
+              close: true,
+              gravity: "top",
+              position: "center",
+              backgroundColor: "green",
+            }).showToast();
+          } else {
+            // Procedure returned false
+            Toastify({
+              text: "Error: Email not found or invalid.",
+              duration: 3000,
+              close: true,
+              gravity: "top",
+              position: "center",
+              backgroundColor: "red",
+            }).showToast();
+          }
+        })
+        .finally(() => {
+          // Hide loading overlay
+          loadingOverlay.style.display = "none";
+        })
+
+    }
+    else {
+      console.log("role: " + role);
+      console.log("global: " + globalClientUsers);
+
+      const FindUser = JSON.parse(globalClientUsers);
+      var FindUserType = FindUser.find(z => z.type === role);
+      console.log("FindUserType: " + FindUserType);
+      if (FindUserType.password !== CheckPassword) {
+        Toastify({
+          text: "Invalid username or password",
+          duration: 3000,
+          close: true,
+          gravity: "top",
+          position: "right",
+          backgroundColor: "red",
+        }).showToast();
+        loadingOverlay.style.display = "none";
+        throw new Error("Invalid username or password");
+      }
+      if (FindUserType.temporary === true) {
+        var encodedEmail = btoa(FindUserType.email);
+        console.log(encodedEmail);
+        sessionStorage.setItem("UserType", role);
+        window.location.href = `Home/Change_Password?email=${encodedEmail}`
+      }
+
+      const UniqueNumber = FindUserType ? FindUserType.no : null;
+      console.log("unique: " + UniqueNumber);
+      globalClientUsers = [];
+
+      fetch(`@($"{API_BASE_URL}")/api/Account/TypeBaseLogin?No=${UniqueNumber}&Type=${role}`)
+        .then(response => {
+          console.log("Fetch request completed.");
+          console.log("response:", response);
+
+          console.log("Status Code:", response.status);
+          if (response.status === 401) {
+            // Show login failed message for invalid credentials
+            Toastify({
+              text: "Invalid username or password",
+              duration: 3000,
+              close: true,
+              gravity: "top",
+              position: "right",
+              backgroundColor: "red",
+            }).showToast();
+
+            throw new Error("Invalid username or password");
+          }
+          else if (response.status !== 200) {
+            // Show login failed message for invalid credentials
+            Toastify({
+              text: "Login failed: " + response.status,
+              duration: 3000,
+              close: true,
+              gravity: "top",
+              position: "right",
+              backgroundColor: "red",
+            }).showToast();
+
+            throw new Error("Login failed");
+          }
+
+          // For successful response (200)
+          return response.json();
+        })
+        .then(data => {
+
+          @* if (data.value === true) {
+            globalClientUsers = JSON.stringify(data.usersData);
+            console.log("Call this api customer or vender");
+            showRoleModal();
+          }
+          else { *@
+            Toastify({
+              text: "Login successful!",
+              duration: 3000,  // 3 seconds
+              close: true,
+              gravity: "top",
+              position: "center",
+              backgroundColor: "green",
+            }).showToast();
+
+            const UserData = JSON.stringify(data);
+            const UserUnique = JSON.parse(UserData);
+            console.log("data: " + JSON.stringify(data));
+            console.log("user no: " + UserUnique.No)
+            sessionStorage.setItem("isLoggedIn", "true");
+            sessionStorage.setItem("UniqueNo", UserUnique.No);
+            sessionStorage.setItem("UserType", role);
+            sessionStorage.setItem("userData", JSON.stringify(data));
+            setTimeout(function () {
+              window.location.href = "/Home/Customer_Home";
+            }, 1000);
+          //}
+        })
+        .finally(() => {
+          // Hide loading overlay
+          loadingOverlay.style.display = "none";
+        })
+    }
+  }
   sessionStorage.getItem("popstat_called")
   const passwordField = document.getElementById("password");
   const togglePassword = document.getElementById("togglePassword");
@@ -69,7 +262,7 @@
     toast.className = "toast show";
     setTimeout(function () { toast.className = toast.className.replace("show", ""); }, 3000); // Hide after 3 seconds
   }
-  const loadingOverlay = document.getElementById("loading");
+
   document.getElementById("loginform").addEventListener("submit", function (event) {
     event.preventDefault();  // Prevent the form from submitting the traditional way
 
@@ -105,7 +298,7 @@
     loadingOverlay.style.display = "flex";
     console.log("Starting fetch request...");
     // Send the data to the Login API using fetch
-    fetch("https://localhost:7003/api/Account/Login", {
+    fetch("@($"{API_BASE_URL}")/api/Account/Login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -119,13 +312,8 @@
         console.log("Response:", response);
 
         console.log("Status Code:", response.status);
-        var email = document.getElementById("username").value
-        if (response.status === 200 && response.redirected === true) {
-          var encodedEmail = btoa(email);
-          console.log(encodedEmail);
-          window.location.href = `Home/Change_Password?email=${encodedEmail}`
-        }
-        else if (response.status === 401) {
+
+        if (response.status === 401) {
           // Show login failed message for invalid credentials
           Toastify({
             text: "Invalid username or password",
@@ -156,23 +344,47 @@
         return response.json();
       })
       .then(data => {
-        Toastify({
-          text: "Login successful!",
-          duration: 3000,  // 3 seconds
-          close: true,
-          gravity: "top",
-          position: "center",
-          backgroundColor: "green",
-        }).showToast();
-    const userData = data.value[0];
-        @* console.log("user no" + userData.No) *@
-          console.log("data" + JSON.stringify(data));
-        sessionStorage.setItem("isLoggedIn", "true");
-        sessionStorage.setItem("UniqueNo", userData.No);
-        sessionStorage.setItem("userData", JSON.stringify(data.value[0]));
-        setTimeout(function () {
-          window.location.href = "/Home/Customer_Home";
-        }, 1000);
+        console.log("data: " + data.UserType);
+        var email = document.getElementById("username").value
+        // customer and vendor hase to
+        if (data.value === true) {
+          CheckPassword = password;
+          globalClientUsers = JSON.stringify(data.usersData);
+          console.log("Call this api customer or vender");
+          showRoleModal();
+        }
+        else if (data.redirected === true) {
+          var encodedEmail = btoa(email);
+          const UserData = JSON.stringify(data);
+          console.log(UserData);
+          @* const UserUnique = JSON.parse(UserData); *@
+          sessionStorage.setItem("UserType", UserData.Type);
+          window.location.href = `Home/Change_Password?email=${encodedEmail}`
+        }
+        else {
+          Toastify({
+            text: "Login successful!",
+            duration: 3000,  // 3 seconds
+            close: true,
+            gravity: "top",
+            position: "center",
+            backgroundColor: "green",
+          }).showToast();
+
+          console.log("data: " + data);
+  @* const UserData = JSON.stringify(data.value);
+          const UserUnique = JSON.parse(UserData); *@
+            console.log("data222: " + JSON.stringify(data));
+  @* console.log("user no: " + UserUnique.No)
+          console.log("user no: " + UserUnique) *@
+            sessionStorage.setItem("isLoggedIn", "true");
+          sessionStorage.setItem("UniqueNo", data.No);
+          sessionStorage.setItem("UserType", data.UserType);
+          sessionStorage.setItem("userData", JSON.stringify(data));
+          setTimeout(function () {
+            window.location.href = "/Home/Customer_Home";
+          }, 1000);
+        }
 
       })
   @* .catch(error => {
@@ -226,7 +438,7 @@
 
     loadingOverlay.style.display = "flex";
     // Call the API to trigger the GenerateTempPassword procedure
-    fetch("https://localhost:7003/api/Account/ForgetPassword", {
+    fetch(`@($"{API_BASE_URL}")/api/Account/ForgetPassword`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -240,7 +452,13 @@
         return response.json();
       })
       .then(data => {
-        if (data.success) {
+        if (data.value === true) {
+          IsForTempPassword = true;
+          TempPasswordUsers = JSON.stringify(data.usersData);
+          console.log("Call this temporary password api customer or vender");
+          showRoleModal();
+        }
+        else if (data === true) {
           // Success - Temp password generated
           Toastify({
             text: "A temporary password has been sent to your email.",
@@ -262,7 +480,7 @@
           }).showToast();
         }
       })
-      @* .catch(error => {
+  @* .catch(error => {
         console.error("Error:", error);
         // Show error toast notification
         Toastify({
@@ -278,6 +496,6 @@
         // Hide loading overlay
         loadingOverlay.style.display = "none";
       })
-    
+
   }
 </script>

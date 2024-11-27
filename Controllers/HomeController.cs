@@ -31,6 +31,14 @@ public class HomeController : Controller
     {
         return View();
     }
+    public IActionResult Quates()
+    {
+        return View();
+    }
+    public IActionResult Credit_Memo()
+    {
+        return View();
+    }
     public IActionResult Change_Password(string email)
     {
         try

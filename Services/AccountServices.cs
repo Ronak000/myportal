@@ -37,31 +37,14 @@ namespace MyPortal.Services
             return new NoContentResult();
         }
 
-        public async Task<IActionResult> TemporaryPassword(string email)
+        public async Task<IActionResult> TemporaryPassword(string Email)
         {
-
-            bool IsUserExist = await _userService.CheckUSerExist(email);
-            if (IsUserExist)
-            {
-                var Temp = await _userService.GetTempPassword(email);
-                if (!Temp)
-                {
-                    return new BadRequestObjectResult(new { success = false, message = "Error generating temporary password or email not found." });
-                }
-                else
-                {
-                    return new OkObjectResult(new { success = true, message = "A temporary password has been sent to your email." });
-                }
-            }
-            else
-            {
-                return new BadRequestObjectResult("Enter business central email id to change password");
-            }
+           return await _userService.CheckUSerExist(Email);   
         }
 
-        public async Task<IActionResult> ChangePassword(string email, string password)
+        public async Task<IActionResult> ChangePassword(string email, string password, string type)
         {
-            var Temp = await _userService.GetChangePassword(email, password);
+            var Temp = await _userService.GetChangePassword(email, password, type);
             if (!Temp)
             {
                 return new BadRequestObjectResult(new { success = false, message = "Error generating temporary password or email not found." });
