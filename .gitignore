@@ -3,3 +3,8 @@ bin/
 obj/
 
 .vscode
+.github
+.config
+
+publish
+

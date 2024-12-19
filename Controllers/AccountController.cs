@@ -18,18 +18,16 @@ namespace MyPortal.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AccountController : Controller
+    public class AccountController : ControllerBase
     {
 
         private readonly UserServices _userService;
         public readonly AccountServices _accountServices;
-        protected readonly DatabaseContext _context;
 
-        public AccountController(UserServices userService, AccountServices accountServices, DatabaseContext context)
+        public AccountController(UserServices userService, AccountServices accountServices)
         {
             _accountServices = accountServices;
             _userService = userService;
-            _context = context;
         }
 
         [HttpGet]
@@ -53,16 +51,7 @@ namespace MyPortal.Controllers
             }
             return await _userService.LoginUser(loginDTO.Email, loginDTO.Password);
         }
-        [HttpPost]
-        [Route("[action]")]
-        public async Task<IActionResult> AddUser([FromBody] UserDetailsDTO userDetailsDTO)
-        {
-            if (userDetailsDTO == null)
-            {
-                return new BadRequestObjectResult("Enter user details");
-            }
-            return await _accountServices.AddUSer(userDetailsDTO);
-        }
+
         /// <summary>
         /// generate temp password and send to user login email 
         /// </summary>
@@ -81,7 +70,7 @@ namespace MyPortal.Controllers
                 return await _accountServices.TemporaryPassword(forgotPassword.Email);
             }
         }
-         /// <summary>
+        /// <summary>
         /// change your temp password to permanent password
         /// </summary>
         /// <remarks>enter new and confirm password</remarks>
@@ -167,7 +156,7 @@ namespace MyPortal.Controllers
                 return new BadRequestResult();
             }
         }
-         /// <summary>
+        /// <summary>
         /// get earliest payment amount
         /// </summary>
         /// <remarks>Enter No </remarks>
@@ -192,9 +181,16 @@ namespace MyPortal.Controllers
         /// <returns>string return if success, error message otherwise.</returns>
         [HttpGet]
         [Route("[action]/{OrderNo}")]
-        public async Task<IActionResult> DownloadOrders(string OrderNo)
+        public async Task<IActionResult> DownloadOrdersReports(string OrderNo, string Type)
         {
-            return await _userService.DownloadOrders(OrderNo);
+            if (Type == "Customer")
+            {
+                return await _userService.DownloadSalesOrdersReport(OrderNo);
+            }
+            else
+            {
+                return await _userService.DownloadPurchadeOrdersReport(OrderNo);
+            }
         }
         /// <summary>
         /// downlaod invoice report
@@ -203,9 +199,16 @@ namespace MyPortal.Controllers
         /// <returns>string return if success, error message otherwise.</returns>
         [HttpGet]
         [Route("[action]/{InvoiceNo}")]
-        public async Task<IActionResult> DownloadInvoices(string InvoiceNo)
+        public async Task<IActionResult> DownloadInvoicesReport(string InvoiceNo, string Type)
         {
-            return await _userService.DownloadInvoices(InvoiceNo);
+            if (Type == "Customer")
+            {
+                return await _userService.DownloadSalesInvoicesReport(InvoiceNo);
+            }
+            else
+            {
+                return await _userService.DownloadPurchaseInvoicesReport(InvoiceNo);
+            }
         }
         /// <summary>
         /// downlaod statement report of customer
@@ -230,23 +233,23 @@ namespace MyPortal.Controllers
             return await _userService.DownloadVendorDetails(No);
         }
         /// <summary>
-        /// List of quates of customer/vendor
+        /// List of quotes of customer/vendor
         /// </summary>
         /// <remarks>Enter No and type</remarks>
-        /// <returns>Quates details if success, error message otherwise.</returns>
+        /// <returns>Quotes details if success, error message otherwise.</returns>
         [HttpGet]
         [Route("[action]")]
-        public async Task<IActionResult> Quates(string No, string Type)
+        public async Task<IActionResult> Quotes(string No, string Type)
         {
             if (No != "null" && !string.IsNullOrEmpty(No))
             {
                 if (Type == "Customer")
                 {
-                    return await _userService.GetCustomerQuates(No);
+                    return await _userService.GetCustomerQuotes(No);
                 }
                 else
                 {
-                    return await _userService.GetVendorQuates(No);
+                    return await _userService.GetVendorQuotes(No);
                 }
             }
             else
@@ -255,15 +258,22 @@ namespace MyPortal.Controllers
             }
         }
         /// <summary>
-        /// downlaod quate report
+        /// downlaod quote report
         /// </summary>
         /// <remarks>enter unique no</remarks>
         /// <returns>string return if success, error message otherwise.</returns>
         [HttpGet]
-        [Route("[action]/{QuateNo}")]
-        public async Task<IActionResult> DownloadQuates(string QuateNo)
+        [Route("[action]/{QuoteNo}")]
+        public async Task<IActionResult> DownloadQuotesReport(string QuoteNo, string Type)
         {
-            return await _userService.DownloadQuates(QuateNo);
+            if (Type == "Customer")
+            {
+                return await _userService.DownloadSalesQuotesReport(QuoteNo);
+            }
+            else
+            {
+                return await _userService.DownloadPurchaseQuotesReport(QuoteNo);
+            }
         }
         /// <summary>
         /// List of credit memo of customer/vendor
@@ -272,7 +282,7 @@ namespace MyPortal.Controllers
         /// <returns>Credit memo details if success, error message otherwise.</returns>
         [HttpGet]
         [Route("[action]")]
-        public async Task<IActionResult> SalesCreditMemo(string No, string Type)
+        public async Task<IActionResult> CreditMemo(string No, string Type)
         {
             if (No != "null" && !string.IsNullOrEmpty(No))
             {
@@ -297,9 +307,16 @@ namespace MyPortal.Controllers
         /// <returns>string return if success, error message otherwise.</returns>
         [HttpGet]
         [Route("[action]/{SalesCreditMemoNo}")]
-        public async Task<IActionResult> DownloadSalesCreditMemo(string SalesCreditMemoNo)
+        public async Task<IActionResult> DownloadCreditMemoReport(string SalesCreditMemoNo, string Type)
         {
-            return await _userService.DownloadSalesCreditMemos(SalesCreditMemoNo);
+            if (Type == "Customer")
+            {
+                return await _userService.DownloadSalesCreditMemoReport(SalesCreditMemoNo);
+            }
+            else
+            {
+                return await _userService.DownloadPurchaseCreditMemoReport(SalesCreditMemoNo);
+            }
         }
         /// <summary>
         /// second login api for both type
@@ -329,7 +346,7 @@ namespace MyPortal.Controllers
             }
         }
         /// <summary>
-        /// second login api for both type
+        /// send temp password based on type
         /// </summary>
         /// <remarks>Enter No and type</remarks>
         /// <returns>USer details if success, error message otherwise.</returns>

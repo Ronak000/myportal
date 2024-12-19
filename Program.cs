@@ -11,25 +11,25 @@ using MyPortal.Services;
 using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using MyPortal.Middlewares;
+using MyPortal.Filters;
+using MyPortal.Services.ReportService;
 
 public class Program
 {
-    // public Program(IConfiguration configuration)
-    // {
-    //     Configuration = configuration;
-    // }
-
-    // public IConfiguration Configuration { get; }
-
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         var Configuration = builder.Configuration;
-
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        Console.WriteLine($"Current Environment: {env}");
         builder.Services.AddAuthentication();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddControllersWithViews();
-        builder.Services.AddControllers();
+        builder.Services.AddControllers(options =>
+        {
+            options.Filters.Add<ApiKeyFilter>(); // Add the filter globally
+        });
         builder.Services.TryAddSingleton<IHttpContextAccessor, HttpContextAccessor>();
         builder.Services.AddSingleton<IConfiguration>(Configuration);
         builder.Services.AddSession(options =>
@@ -43,61 +43,32 @@ public class Program
         builder.Services.AddScoped<AccountServices>();
         builder.Services.AddScoped<CustomerServices>();
         builder.Services.AddScoped<VendorServices>();
+        builder.Services.AddScoped<ICustomerService, CustomerServices>();
+        builder.Services.AddScoped<IVendorService, VendorServices>();
+        builder.Services.AddScoped<IReportServices, ReportService>();
+        builder.Services.AddScoped<ICustomerReportServices, CustomerReportServices>();
+        builder.Services.AddScoped<IVendorReportServices, VendorReportServices>();
+
 
         // sql server connection string
-        builder.Services.AddDbContext<DatabaseContext>(option =>
-            option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+        // builder.Services.AddDbContext<DatabaseContext>(option =>
+        //     option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
         // Add services to the container.
         var Serverlocal = new OpenApiServer();
         Serverlocal.Url = "https://localhost:7003";
 
-
-    //     builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-    // .AddMicrosoftIdentityWebApp(Configuration.GetSection("AzureAD"));
-    //     builder.Services.AddAuthorization(config =>
-    //    {
-    //        config.AddPolicy("AuthZPolicy", policyBuilder =>
-    //            policyBuilder.Requirements.Add(new ScopeAuthorizationRequirement() { RequiredScopesConfigurationKey = $"AzureAd:Scopes" }));
-    //    });
-        
-
         builder.Services.AddSwaggerGen(options =>
         {
+            options.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "My Portal",
+                Version = "v1"
+            });
+            options.OperationFilter<AddCustomHeaderOperationFilter>();
             options.AddServer(Serverlocal);
-            // options.SwaggerDoc("v1", new OpenApiInfo
-            // {
-            //     Version = "v1",
-            //     Title = "My Portal",
-            //     Description = "An ASP.NET Core Web API for managing My Portal",
-
-            // });
-            // var Instance = Configuration.GetSection("AzureAD").GetValue<string>("Instance");
-            // var TenantId = Configuration.GetSection("AzureAD").GetValue<string>("TenantId");
-            // var ClientId = Configuration.GetSection("AzureAD").GetValue<string>("ClientId");
             var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
             options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
-            // options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
-            // {
-            //     Type = SecuritySchemeType.OAuth2,
-            //     Flows = new OpenApiOAuthFlows()
-            //     {
-            //         AuthorizationCode = new OpenApiOAuthFlow()
-            //         {
-            //             AuthorizationUrl = new Uri($"{Instance}{TenantId}/oauth2/v2.0/authorize"),
-            //             TokenUrl = new Uri($"{Instance}{TenantId}/oauth2/v2.0/token"),
-            //             Scopes = { { $"https://api.businesscentral.dynamics.com/.default", "Access as user" } }
-            //         }
-            //     }
-            // });
-            // options.AddSecurityRequirement(new OpenApiSecurityRequirement {
-            //     { new OpenApiSecurityScheme
-            //             {
-            //              Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "oauth2"}
-            //             },
-            //         new string[] {}
-            //     }
-            //     });
         }
         );
 
@@ -107,7 +78,6 @@ public class Program
         using (var scope = app.Services.CreateScope())
         {
             var userService = scope.ServiceProvider.GetRequiredService<UserServices>();
-            // var tokenManager = scope.ServiceProvider.GetRequiredService<TokenManager>();
 
             // Call methods to fetch tokens or initialize
             userService.InitializeAsync(); // Assuming you have these methods in the service classes
@@ -131,6 +101,7 @@ public class Program
             option.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
             option.RoutePrefix = "swagger";
         });
+        // app.UseMiddleware<ApiKeyMiddleware>();
         app.UseHttpsRedirection();
         app.UseStaticFiles();
 

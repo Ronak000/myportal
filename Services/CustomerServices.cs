@@ -2,13 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MyPortal.Services
 {
-    public class CustomerServices
+    public class CustomerServices : ICustomerService
     {
         private readonly IConfiguration _configuration;
         public CustomerServices(IConfiguration configuration)
@@ -42,8 +44,8 @@ namespace MyPortal.Services
 
         public async Task<IActionResult> CustomerOrders(string No, string accessToken)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesOrder");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
+            string CustomerOrderUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesOrder");
+            string FilterUrl = $"{CustomerOrderUrl}/?$filter=sellToCustomerNo eq '{No}'";
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -66,8 +68,8 @@ namespace MyPortal.Services
 
         public async Task<IActionResult> CustomerInvoices(string No, string accessToken)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesInvoice");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
+            string CustomerInvoiceUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesInvoice");
+            string FilterUrl = $"{CustomerInvoiceUrl}/?$filter=sellToCustomerNo eq '{No}'";
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -88,10 +90,10 @@ namespace MyPortal.Services
             }
         }
 
-        public async Task<IActionResult> CustomerQuates(string No, string accessToken)
+        public async Task<IActionResult> CustomerQuotes(string No, string accessToken)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesQuates");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
+            string CustomerQuateUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesQuotes");
+            string FilterUrl = $"{CustomerQuateUrl}/?$filter=sellToCustomerNo eq '{No}'";
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -114,8 +116,8 @@ namespace MyPortal.Services
 
         public async Task<IActionResult> CustomerSalesCreditMemo(string No, string accessToken)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesCreditMemoNo");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
+            string CustomerSalesCreditMemoUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("SalesCreditMemo");
+            string FilterUrl = $"{CustomerSalesCreditMemoUrl}/?$filter=sellToCustomerNo eq '{No}'";
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -132,6 +134,92 @@ namespace MyPortal.Services
                 {
                     Console.WriteLine("Failed to retrieve orders: " + response.StatusCode);
                     return null;
+                }
+            }
+        }
+
+        public async Task<IActionResult> GetEarliestPaymentDate(string No, string accessToken)
+        {
+            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
+            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:GetEarliestPaymentDate";
+            var SoapXml = $@"
+            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
+                        <soapenv:Header/>
+                        <soapenv:Body>
+                            <urn:GetEarliestPaymentDate>
+                                <urn:custNo>{No}</urn:custNo>
+                            </urn:GetEarliestPaymentDate>
+                        </soapenv:Body>
+                    </soapenv:Envelope>";
+
+
+            using (HttpClient client = new HttpClient())
+            {
+                var Request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri(BCCustomerLoginApiUrl),
+                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml")
+                };
+                Request.Headers.Add("SOAPAction", SOAPAction);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                HttpResponseMessage Response = await client.SendAsync(Request);
+
+                if (Response.IsSuccessStatusCode)
+                {
+                    var Data = await Response.Content.ReadAsStringAsync();
+                    var RootElement = XElement.Parse(Data);
+                    var Date = RootElement.Value.ToString();
+                    return new OkObjectResult(new { Date = Date });
+                }
+                else
+                {
+                    Console.WriteLine("Error while sending temporary password:" + Response.IsSuccessStatusCode);
+                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
+                }
+            }
+        }
+
+        public async Task<IActionResult> GetEarliestPaymentAmount(string No, string accessToken)
+        {
+            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
+            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:GetEarliestPaymentAmount";
+            var SoapXml = $@"
+            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
+                        <soapenv:Header/>
+                        <soapenv:Body>
+                            <urn:GetEarliestPaymentAmount>
+                                <urn:custNo>{No}</urn:custNo>
+                            </urn:GetEarliestPaymentAmount>
+                        </soapenv:Body>
+                    </soapenv:Envelope>";
+
+
+            using (HttpClient client = new HttpClient())
+            {
+                var Request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Get,
+                    RequestUri = new Uri(BCCustomerLoginApiUrl),
+                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml")
+                };
+                Request.Headers.Add("SOAPAction", SOAPAction);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+                HttpResponseMessage Response = await client.SendAsync(Request);
+
+                if (Response.IsSuccessStatusCode)
+                {
+                    var Data = await Response.Content.ReadAsStringAsync();
+                    var RootElement = XElement.Parse(Data);
+                    var Amount = double.Parse(RootElement.Value);
+                    return new OkObjectResult(Amount);
+                }
+                else
+                {
+                    Console.WriteLine("Error while sending temporary password:" + Response.IsSuccessStatusCode);
+                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
                 }
             }
         }

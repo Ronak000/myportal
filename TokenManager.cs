@@ -8,9 +8,9 @@ namespace MyPortal
 {
     public class TokenManager
     {
-        public static async Task<Token> GetNewAccessTokenAsync(string tenantId, string clientId, string clientSecret)
+        public static async Task<TokenDTO> GetNewAccessTokenAsync(string MicrosoftUrl, string TenantId, string ClientId, string ClientSecret)
         {
-            var token = await GetTokenAsync(tenantId, clientId, clientSecret);
+            var token = await GetTokenAsync(MicrosoftUrl, TenantId, ClientId, ClientSecret);
 
             if (token != null)
             {
@@ -19,29 +19,29 @@ namespace MyPortal
             else
             {
                 Console.WriteLine("Failed to get access token.");
-                return null;
+                return token;
             }
         }
-        static async Task<Token> GetTokenAsync(string tenantId, string clientId, string clientSecret)
+        static async Task<TokenDTO> GetTokenAsync(string MicrosoftUrl, string TenantId, string ClientId, string ClientSecret)
         {
-            var tokenEndpoint = $"https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token";
+            var tokenEndpoint = $"{MicrosoftUrl}/{TenantId}/oauth2/v2.0/token";
 
             using (HttpClient client = new HttpClient())
             {
                 var parameters = new FormUrlEncodedContent(new[]
                 {
-                new KeyValuePair<string, string>("client_id", clientId),
-                new KeyValuePair<string, string>("client_secret", clientSecret),
-                new KeyValuePair<string, string>("grant_type", "client_credentials"),
-                new KeyValuePair<string, string>("scope", "https://api.businesscentral.dynamics.com/.default")
-            });
+                    new KeyValuePair<string, string>("client_id", ClientId),
+                    new KeyValuePair<string, string>("client_secret", ClientSecret),
+                    new KeyValuePair<string, string>("grant_type", "client_credentials"),
+                    new KeyValuePair<string, string>("scope", "https://api.businesscentral.dynamics.com/.default")
+                });
 
                 HttpResponseMessage response = await client.PostAsync(tokenEndpoint, parameters);
 
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
-                    var tokenResult = JsonConvert.DeserializeObject<Token>(json);
+                    var tokenResult = JsonConvert.DeserializeObject<TokenDTO>(json);
                     return tokenResult;
                 }
                 else
@@ -53,9 +53,9 @@ namespace MyPortal
         }
     }
 }
-public class Token
+public class TokenDTO
 {
     public string token_type { get; set; }
     public int expires_in { get; set; }
-    public string  access_token{ get; set; }
+    public string access_token { get; set; }
 }

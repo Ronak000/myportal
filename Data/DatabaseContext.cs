@@ -15,11 +15,6 @@ namespace MyPortal.Data
             _configuration = configuration;
 
         }
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
-        {
-            // connect to sql server with connection string from app settings
-            options.UseSqlServer(_configuration.GetConnectionString("DefaultConnection"));
-        }
         public DbSet<ClientUser> ClientUser { get; set; }
     }
 }

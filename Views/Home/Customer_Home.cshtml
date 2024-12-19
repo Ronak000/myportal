@@ -4,6 +4,8 @@
 @inject IConfiguration Configuration
 @{
   var API_BASE_URL = $"{Configuration["API_BASE_URL"]}";
+  var API_KEY = Configuration.GetSection("ApiSettings").GetValue<string>("ApiKey");
+  var API_VALUE = Configuration.GetSection("ApiSettings").GetValue<string>("ApiPassword");
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -14,13 +16,14 @@
   <title>@ViewData["Title"] - MyPortal</title>
 
   <link rel="stylesheet" href="~/css/Customer_Home.css" asp-append-version="true" />
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
   <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+  @* <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet"> *@
 
   <!-- FontAwesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  @* <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> *@
 
 </head>
 
@@ -35,8 +38,13 @@
   </button> *@
   <div class="container-fluid">
     <div class="row">
+      <div class="mobile-header">
+        <button id="menu-toggle" class="menu-toggle">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
       <!-- Sidebar -->
-      <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column">
+      <nav class="col-md-3 col-lg-2 sidebar d-flex flex-column" id="sidebar">
         <ul class="nav flex-column">
           <li class="nav-item mt-3">
             <a href="#" id="Customer_Home-link"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a>
@@ -48,15 +56,18 @@
             <a href="@($"{API_BASE_URL}/Home/Invoices")"><i class="fa-solid fa-file-lines me-2"></i>Invoices</a>
           </li>
           <li class="nav-item">
-            <a href="@($"{API_BASE_URL}/Home/Quates")"><i class="fa-solid fa-pen-to-square me-2"></i>Quates</a>
+            <a href="@($"{API_BASE_URL}/Home/Quotes")"><i class="fa-solid fa-pen-to-square me-2"></i>Quotes</a>
           </li>
           <li class="nav-item">
             <a href="@($"{API_BASE_URL}/Home/Credit_Memo")"><i class="fa-solid fa-book me-2"></i>Credit Memo</a>
           </li>
+          <li class="mt-auto nav-item">
+            <button class="logout-button" onclick="logout()">
+              <i class="fas fa-sign-out-alt me-2"></i> Logout
+            </button>
+          </li>
         </ul>
-        <button class="mt-auto mb-2 logout-button" onclick="logout()">
-          <i class="fas fa-sign-out-alt me-2"></i> Logout
-        </button>
+
       </nav>
 
       <!-- Main Content -->
@@ -68,9 +79,10 @@
             <!-- <button class="btn btn-primary" onclick="openModal()">Download Statement</button> -->
           </div>
           <div class="header mb-4">
-            <h3>Customer Details</h3>
+            <h3 id="customer_details">Customer Details</h3>
             <button class="statement-button" id="customer_statement" onclick="openModal()">Download Statement</button>
-            <button class="statement-button" id="vendor_details" onclick="DownloadVendorDetails()">Download Vendor Details</button>
+            <button class="statement-button" id="vendor_details" onclick="DownloadVendorDetails()">Download Vendor
+              Ledger</button>
             @* <button class="statement-button" data-bs-toggle="modal" data-bs-target="#download_statement">Download Statement</button> *@
 
           </div>
@@ -81,48 +93,26 @@
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <h3>Select Date Range</h3>
             <label for="startDate">Start Date:</label>
-            <input type="date" id="startDate" onchange="validateDates()">
+            <input type="date" id="startDate" onchange="validateDates()" required>
             <label for="endDate">End Date:</label>
-            <input type="date" id="endDate" onchange="validateDates()" max="">
+            <input type="date" id="endDate" onchange="validateDates()" max="" required>
             <button onclick="downloadCustomerStatement()">Download</button>
           </div>
         </div>
 
-        <!-- Modal -->
-        @* <div class="modal fade" id="download_statement" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h1 class="modal-title fs-5" id="exampleModalLabel">Select Date Range</h1>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              <label for="startDate">Start Date:</label>
-              <input type="date" id="startDate" onchange="validateDates()">
-              <label for="endDate">End Date:</label>
-              <input type="date" id="endDate" onchange="validateDates()" max="">
-            </div>
-            <div class="modal-footer">
-              <button type="button" onclick="downloadStatement()" class="btn btn-primary">Download</button>
-            </div>
-          </div>
-        </div>
-      </div> *@
-
-
         <!-- Tiles -->
         <div class="row g-4">
           <div class="col-sm-6 col-md-3">
-            <div class="tile">
-              <h4>Sales Orders</h4>
+            <div class="tile" onclick="window.location.href='/Home/Orders';" style="cursor: pointer;">
+              <h4 id="orderTitle">Orders</h4>
               <p class="count" id="orderCount">-</p>
               <div class="underline"></div>
               <div class="arrow">&gt;</div>
             </div>
           </div>
           <div class="col-sm-6 col-md-3">
-            <div class="tile">
-              <h4>Invoices</h4>
+            <div class="tile" onclick="window.location.href='/Home/Invoices';" style="cursor: pointer;">
+              <h4 id="purchaseTitle">Invoices</h4>
               <p class="count" id="invoiceCount">-</p>
               <div class="underline"></div>
               <div class="arrow">&gt;</div>
@@ -130,7 +120,7 @@
           </div>
           <div class="col-sm-6 col-md-3">
             <div class="tile">
-              <h4>Next Due Payment Date</h4>
+              <h4>Next Due Date</h4>
               <p class="count" id="earliestpaymentdate">-</p>
               <div class="underline"></div>
               <div class="arrow">&gt;</div>
@@ -138,8 +128,24 @@
           </div>
           <div class="col-sm-6 col-md-3">
             <div class="tile">
-              <h4>Next Due Payment Amount</h4>
+              <h4>Next Due Amount</h4>
               <p class="count" id="earliestpaymentamount">-</p>
+              <div class="underline"></div>
+              <div class="arrow">&gt;</div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-md-3">
+            <div class="tile" onclick="window.location.href='/Home/Quotes';" style="cursor: pointer;">
+              <h4 id="quoteTitle">Quotes</h4>
+              <p class="count" id="quotecount">-</p>
+              <div class="underline"></div>
+              <div class="arrow">&gt;</div>
+            </div>
+          </div>
+          <div class="col-sm-6 col-md-3">
+            <div class="tile" onclick="window.location.href='/Home/Credit_memo';" style="cursor: pointer;">
+              <h4 id="credit_memoTitle">Credit Memo</h4>
+              <p class="count" id="credit_memocount">-</p>
               <div class="underline"></div>
               <div class="arrow">&gt;</div>
             </div>
@@ -171,31 +177,49 @@
                   </div>
                 </div>
                 <!-- Third Column -->
-                <div class="col-lg-6 col-md-12">
+                <div class="col-lg-6 col-md-12" id="sales_balance">
                   <div class="d-flex justify-content-between p-2 rounded user-detail-item">
                     <p class="fw-bold mb-0 key">Balance:</p>
                     <p class="mb-0 text-muted value" id="balance">Loading...</p>
                   </div>
                 </div>
                 <!-- Fourth Column -->
-                <div class="col-lg-6 col-md-12">
+                <div class="col-lg-6 col-md-12" id="sales_balance_due">
                   <div class="d-flex justify-content-between p-2 rounded user-detail-item">
                     <p class="fw-bold mb-0 key">Balance Due:</p>
                     <p class="mb-0 text-muted value" id="balance_due">Loading...</p>
                   </div>
                 </div>
                 <!-- Fifth Column -->
-                <div class="col-lg-6 col-md-12">
+                <div class="col-lg-6 col-md-12" id="sales_credit_limit">
                   <div class="d-flex justify-content-between p-2 rounded user-detail-item">
                     <p class="fw-bold mb-0 key">Credit Limit ($):</p>
                     <p class="mb-0 text-muted value" id="credit_limit">Loading...</p>
                   </div>
                 </div>
                 <!-- Sixth Column -->
-                <div class="col-lg-6 col-md-12">
+                <div class="col-lg-6 col-md-12" id="sales_total_sales">
                   <div class="d-flex justify-content-between p-2 rounded user-detail-item">
                     <p class="fw-bold mb-0 key">Total Sales:</p>
                     <p class="mb-0 text-muted value" id="total_sales">Loading...</p>
+                  </div>
+                </div>
+                <div class="col-lg-6 col-md-12" id="purchase_total_purchase">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Total Purchase:</p>
+                    <p class="mb-0 text-muted value" id="total_purchase">Loading...</p>
+                  </div>
+                </div>
+                <div class="col-lg-6 col-md-12" id="purchase_vat_registration">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">VAT Registration:</p>
+                    <p class="mb-0 text-muted value" id="vat_registration">Loading...</p>
+                  </div>
+                </div>
+                <div class="col-lg-6 col-md-12" id="purchase_federalIdNo">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Federal ID No:</p>
+                    <p class="mb-0 text-muted value" id="federalNo">Loading...</p>
                   </div>
                 </div>
               </div>
@@ -209,11 +233,23 @@
             </div>
             <div class="card-body">
               <div class="row g-3">
-                <!-- Address -->
+                <!-- Address 1 -->
                 <div class="col-lg-6 col-md-12">
                   <div class="d-flex justify-content-between p-2 rounded user-detail-item">
                     <p class="fw-bold mb-0 key">Address:</p>
                     <p class="mb-0 text-muted value" id="address">Loading...</p>
+                  </div>
+                </div>
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Postcode:</p>
+                    <p class="mb-0 text-muted value" id="post_code">Loading...</p>
+                  </div>
+                </div>
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">Address 2:</p>
+                    <p class="mb-0 text-muted value" id="address2">Loading...</p>
                   </div>
                 </div>
                 <!-- Country/Region Code -->
@@ -223,6 +259,12 @@
                     <p class="mb-0 text-muted value" id="country_code">Loading...</p>
                   </div>
                 </div>
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">City:</p>
+                    <p class="mb-0 text-muted value" id="city">Loading...</p>
+                  </div>
+                </div>
                 <!-- Phone No -->
                 <div class="col-lg-6 col-md-12">
                   <div class="d-flex justify-content-between p-2 rounded user-detail-item">
@@ -230,11 +272,18 @@
                     <p class="mb-0 text-muted value" id="phone_no">Loading...</p>
                   </div>
                 </div>
+                <!-- Country/Region Code -->
+                <div class="col-lg-6 col-md-12">
+                  <div class="d-flex justify-content-between p-2 rounded user-detail-item">
+                    <p class="fw-bold mb-0 key">State:</p>
+                    <p class="mb-0 text-muted value" id="state">Loading...</p>
+                  </div>
+                </div>
                 <!-- Location Code -->
                 <div class="col-lg-6 col-md-12">
                   <div class="d-flex justify-content-between p-2 rounded user-detail-item">
-                    <p class="fw-bold mb-0 key">Location Code:</p>
-                    <p class="mb-0 text-muted value" id="location_code">Loading...</p>
+                    <p class="fw-bold mb-0 key">Email:</p>
+                    <p class="mb-0 text-muted value" id="email">Loading...</p>
                   </div>
                 </div>
               </div>
@@ -246,53 +295,101 @@
     </div>
   </div>
 
-
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
 
   <script>
     const UniqueNo = sessionStorage.getItem("UniqueNo");
     const UserType = sessionStorage.getItem("UserType");
-    @* document.getElementById('toggleSidebar').addEventListener('click', function () {
-      const sidebar = document.getElementById('sidebar');
-      sidebar.classList.toggle('active'); // Toggle the 'active' class
-    }); *@
-      document.addEventListener("DOMContentLoaded", function () {
-        if (UserType === "Vendor") {
-          // Remove or hide specific tiles for vendor login
-          document.getElementById("earliestpaymentdate").closest(".col-sm-6").style.display = "none";
-          document.getElementById("earliestpaymentamount").closest(".col-sm-6").style.display = "none";
-          const customer_statement_btn = document.getElementById("customer_statement");
-          if (customer_statement_btn) {
-            customer_statement_btn.style.display = "none";
-          }
+    const loadingOverlay = document.getElementById("loading");
+    const menuButton = document.getElementById('menu-toggle');
+    const sidebar = document.getElementById('sidebar');
+
+    sessionStorage.setItem("PreviousPage", "dashboard");
+
+    var cust_details = document.getElementById("customer_details");
+    document.addEventListener("DOMContentLoaded", function () {
+      if (UserType === 'Customer') {
+        const vender_details_btn = document.getElementById("vendor_details");
+        if (vender_details_btn) {
+          vender_details_btn.remove();
         }
-        else {
-          const vender_details_btn = document.getElementById("vendor_details");
-          if (vender_details_btn) {
-            vender_details_btn.remove();
-          }
+        cust_details.textContent = "Customer Details";
+        document.getElementById("quoteTitle").closest(".col-sm-6").style.display = "none";
+        document.getElementById("credit_memoTitle").closest(".col-sm-6").style.display = "none";
+        var purchase_total_purchase = document.getElementById("purchase_total_purchase");
+        var purchase_vat_registration = document.getElementById("purchase_vat_registration");
+        var purchase_federalIdNo = document.getElementById("purchase_federalIdNo");
+        purchase_total_purchase.style.display = 'none';
+        purchase_vat_registration.style.display = 'none';
+        purchase_federalIdNo.style.display = 'none';
+      }
+      else {
+        cust_details.textContent = "Vendor Details";
+        // Remove or hide specific tiles for vendor login
+        document.getElementById("earliestpaymentdate").closest(".col-sm-6").style.display = "none";
+        document.getElementById("earliestpaymentamount").closest(".col-sm-6").style.display = "none";
+        const customer_statement_btn = document.getElementById("customer_statement");
+        if (customer_statement_btn) {
+          customer_statement_btn.style.display = "none";
         }
-      });
+        var sales_balance = document.getElementById("sales_balance");
+        var sales_balance_due = document.getElementById("sales_balance_due");
+        var sales_credit_limit = document.getElementById("sales_credit_limit");
+        var sales_total_sales = document.getElementById("sales_total_sales");
+        sales_balance.style.display = 'none';
+        sales_balance_due.style.display = 'none';
+        sales_credit_limit.style.display = 'none';
+        sales_total_sales.style.display = 'none';
+      }
+    });
+
+    // Toggle sidebar visibility for small screens
+    menuButton.addEventListener('click', () => {
+      if (window.innerWidth <= 768) { // Apply only for small screens
+        if (sidebar.classList.contains('sidebar-visible')) {
+          sidebar.classList.remove('sidebar-visible');
+        } else {
+          sidebar.classList.add('sidebar-visible');
+        }
+      }
+    });
+
+    // Ensure correct sidebar state on window resize
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 768) {
+        // Ensure sidebar is visible and reset styles
+        sidebar.classList.add('sidebar-visible');
+        sidebar.style.transform = ''; // Reset transform property
+      } else {
+        // Ensure sidebar is hidden initially on small screens
+        sidebar.classList.remove('sidebar-visible');
+      }
+    });
+
     async function DownloadVendorDetails() {
       // Make API call with the selected date range
       try {
-        const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadVendorDetails/${UniqueNo}`);
+        loadingOverlay.style.display = "flex";
+        const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadVendorDetails/${UniqueNo}`, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": `@($"{API_KEY}")`,
+              "X-API-PASSWORD": `@($"{API_VALUE}")`
+            }
+          });
 
         if (response.ok) {
           const data = await response.json();
-
+          loadingOverlay.style.display = "none";
           if (data.base64) {
             const byteCharacters = atob(data.base64);
-
             const byteNumbers = Array.from(byteCharacters).map(char => char.charCodeAt(0));
             const byteArray = new Uint8Array(byteNumbers);
-
             const blob = new Blob([byteArray], { type: 'application/pdf' });
-            console.log("blob:" + blob);
-
             const downloadUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = downloadUrl;
-            link.download = `${UniqueNo}_Statement_${startDate}_to_${endDate}.pdf`;
+            link.download = `VEN_ACC_${UniqueNo}.pdf`;
             document.body.appendChild(link);
             link.click();
 
@@ -352,35 +449,35 @@
       }
       // Make API call with the selected date range
       try {
-        const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadStatements/${UniqueNo}`, {
+        loadingOverlay.style.display = "flex";
+        const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadCustomerStatements/${UniqueNo}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "X-API-KEY": `@($"{API_KEY}")`,
+            "X-API-PASSWORD": `@($"{API_VALUE}")`
           },
           body: JSON.stringify({ startDate, endDate }),
         });
 
         if (response.ok) {
           const data = await response.json();
-
+          loadingOverlay.style.display = "none";
           if (data.base64) {
             const byteCharacters = atob(data.base64);
-
             const byteNumbers = Array.from(byteCharacters).map(char => char.charCodeAt(0));
             const byteArray = new Uint8Array(byteNumbers);
-
             const blob = new Blob([byteArray], { type: 'application/pdf' });
-            console.log("blob:" + blob);
-
             const downloadUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = downloadUrl;
-            link.download = `${UniqueNo}_Statement_${startDate}_to_${endDate}.pdf`;
+            link.download = `CUST_STAT_${UniqueNo}.pdf`;
             document.body.appendChild(link);
             link.click();
 
             URL.revokeObjectURL(downloadUrl);
             document.body.removeChild(link);
+            closeModal();
           } else {
             alert("File download failed.");
           }
@@ -392,38 +489,24 @@
         alert("An error occurred while downloading the statement.");
       }
     }
-    // Add an event listener for the back navigation
-    window.addEventListener("popstate", function (event) {
-      // Check if user is on the dashboard page
-      console.log(event);
-      console.log("popstat called");
-      debugger;
-      sessionStorage.setItem("popstat_called", "true");
 
-      const confirmLogout = confirm("Are you sure? You will be logged out.");
 
-      if (confirmLogout) {
-        // Clear session data or mark the user as logged out
-        sessionStorage.clear();
-        localStorage.clear();
-        history.back();
-        // Redirect to login page
-        window.location.href = "@($"{API_BASE_URL}")"; // Replace with your login URL
-      } else {
-        // Prevent going back by pushing the current state again
-        history.pushState(null, null, window.location.href);
-      }
 
-    });
-    // Optional: Set the initial state for this page on load
-    window.addEventListener("load", function () {
-      history.pushState(null, null, window.location.href);
-    });
+    history.pushState({}, '', '/Home/Customer_Home');
+
+
+
     // Function to fetch data and get the count
     async function fetchOrdersCount() {
       try {
         if (UniqueNo !== null) {
-          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Orders?No=${UniqueNo}&Type=${UserType}`);
+          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Orders?No=${UniqueNo}&Type=${UserType}`, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": `@($"{API_KEY}")`,
+              "X-API-PASSWORD": `@($"{API_VALUE}")`
+            }
+          });
 
           if (!response.ok) {
 
@@ -446,7 +529,13 @@
     async function fetchInvoiceCount() {
       try {
         if (UniqueNo !== null) {
-          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Invoices?No=${UniqueNo}&Type=${UserType}`);
+          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Invoices?No=${UniqueNo}&Type=${UserType}`, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": `@($"{API_KEY}")`,
+              "X-API-PASSWORD": `@($"{API_VALUE}")`
+            }
+          });
 
           if (!response.ok) {
 
@@ -462,50 +551,129 @@
         console.error("Error fetching data:", error);
       }
     }
-    async function fetchEarliestPaymentDate() {
-      try {
-        if (UniqueNo !== null) {
-          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/EarliestPaymentDate?No=${UniqueNo}`);
-
-          if (!response.ok) {
-
-            throw new Error(`Error: ${response.status}`);
-          }
-          const data = await response.json();
-
-          document.getElementById('earliestpaymentdate').textContent = data.date;
-        }
-      }
-      catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    }
-    async function fetchEarliestPaymentAmount() {
-      try {
-        if (UniqueNo !== null) {
-          const response = await fetch(`@($"{API_BASE_URL}")/api/Account/EarliestPaymentAmount?No=${UniqueNo}`);
-
-          if (!response.ok) {
-
-            throw new Error(`Error: ${response.status}`);
-          }
-          const data = await response.json();
-
-          document.getElementById('earliestpaymentamount').textContent = data;
-        }
-      }
-      catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    }
 
     // Call the function when needed (e.g., on page load)
-    window.addEventListener("load", fetchOrdersCount);
-    window.addEventListener("load", fetchInvoiceCount);
-    window.addEventListener("load", fetchEarliestPaymentDate);
-    window.addEventListener("load", fetchEarliestPaymentAmount);
+    if (UserType === 'Customer') {
+      async function fetchEarliestPaymentDate() {
+        try {
+          if (UniqueNo !== null) {
+            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/EarliestPaymentDate?No=${UniqueNo}`, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": `@($"{API_KEY}")`,
+              "X-API-PASSWORD": `@($"{API_VALUE}")`
+            }
+          });
 
-    let timeout;
+            if (!response.ok) {
+
+              throw new Error(`Error: ${response.status}`);
+            }
+            const data = await response.json();
+
+            document.getElementById('earliestpaymentdate').textContent = data.date;
+          }
+        }
+        catch (error) {
+          console.error("Error fetching data:", error);
+        }
+      }
+      async function fetchEarliestPaymentAmount() {
+        try {
+          if (UniqueNo !== null) {
+            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/EarliestPaymentAmount?No=${UniqueNo}`, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": `@($"{API_KEY}")`,
+              "X-API-PASSWORD": `@($"{API_VALUE}")`
+            }
+          });
+
+            if (!response.ok) {
+
+              throw new Error(`Error: ${response.status}`);
+            }
+            const data = await response.json();
+
+            document.getElementById('earliestpaymentamount').textContent = data;
+          }
+        }
+        catch (error) {
+          console.error("Error fetching data:", error);
+        }
+      }
+      window.addEventListener("load", fetchOrdersCount);
+      window.addEventListener("load", fetchInvoiceCount);
+      window.addEventListener("load", fetchEarliestPaymentDate);
+      window.addEventListener("load", fetchEarliestPaymentAmount);
+    }
+    else {
+      async function fetchQuoteCount() {
+        try {
+          if (UniqueNo !== null) {
+            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Quotes?No=${UniqueNo}&Type=${UserType}`, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": `@($"{API_KEY}")`,
+              "X-API-PASSWORD": `@($"{API_VALUE}")`
+            }
+          });
+
+            if (!response.ok) {
+
+              throw new Error(`Error: ${response.status}`);
+            }
+            const data = await response.json();
+
+            //sessionStorage.setItem("allorders", JSON.stringify(data));
+            // Get the count of items in the array
+            const totalCount = data.length;
+
+            document.getElementById('quotecount').textContent = totalCount;
+          }
+        }
+
+        catch (error) {
+          console.error("Error fetching data:", error);
+        }
+      }
+      async function fetchCreditMemoCount() {
+        try {
+          if (UniqueNo !== null) {
+            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/CreditMemo?No=${UniqueNo}&Type=${UserType}`, {
+            method: "GET",
+            headers: {
+              "X-API-KEY": `@($"{API_KEY}")`,
+              "X-API-PASSWORD": `@($"{API_VALUE}")`
+            }
+          });
+
+            if (!response.ok) {
+
+              throw new Error(`Error: ${response.status}`);
+            }
+            const data = await response.json();
+
+            //sessionStorage.setItem("allorders", JSON.stringify(data));
+            // Get the count of items in the array
+            const totalCount = data.length;
+
+            document.getElementById('credit_memocount').textContent = totalCount;
+          }
+        }
+
+        catch (error) {
+          console.error("Error fetching data:", error);
+        }
+      }
+      window.addEventListener("load", fetchOrdersCount);
+      window.addEventListener("load", fetchInvoiceCount);
+      window.addEventListener("load", fetchQuoteCount);
+      window.addEventListener("load", fetchCreditMemoCount);
+    }
+    @* window.addEventListener("load", updateUserInfo); *@
+
+      let timeout;
 
     function startSessionTimeout() {
       // Clear any existing timeout
@@ -530,36 +698,90 @@
     // Start the initial session timeout when the page loads
     startSessionTimeout();
 
-
     document.addEventListener("DOMContentLoaded", function () {
-      // Fetch user data from sessionStorage
-      const apiData = JSON.parse(sessionStorage.getItem("userData"));
-      // Function to update the UI with fetched data
-      function updateUserInfo() {
-        if (apiData) {
-
-          console.log(apiData);// general data
-          document.getElementById("no").textContent = apiData.No || "N/A";
-          document.getElementById("name").textContent = apiData.Name || "N/A";
-          document.getElementById("headername").textContent = apiData.Name || "N/A";
-          document.getElementById("balance").textContent = apiData.Balance_LCY || "N/A";
-          document.getElementById("balance_due").textContent = apiData.Balance_Due_LCY || "N/A";
-          document.getElementById("credit_limit").textContent = apiData.Credit_Limit_LCY || "N/A";
-          document.getElementById("total_sales").textContent = apiData.Sales_LCY || "N/A";
-          // address data
-          document.getElementById("address").textContent = apiData.Name || "N/A";
-          document.getElementById("country_code").textContent = apiData.Country_Region_Code || "N/A";
-          document.getElementById("phone_no").textContent = apiData.Phone_No || "N/A";
-          document.getElementById("location_code").textContent = apiData.Location_Code || "N/A";
-
-
-        } else {
-          document.getElementById("userData").textContent = "No data found!";
+      fetch(`@($"{API_BASE_URL}")/api/Account/TypeBaseLogin?No=${UniqueNo}&Type=${UserType}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-KEY": `@($"{API_KEY}")`,
+          "X-API-PASSWORD": `@($"{API_VALUE}")`
         }
-      }
+      })
+        .then(response => {
+          console.log("Fetch request completed.");
 
-      // Initial data load
-      updateUserInfo();
+          if (response.status === 401) {
+            // Show login failed message for invalid credentials
+            Toastify({
+              text: "Invalid username or password",
+              duration: 3000,
+              close: true,
+              gravity: "top",
+              position: "right",
+              backgroundColor: "red",
+            }).showToast();
+
+            throw new Error("Invalid username or password");
+          }
+          else if (response.status !== 200) {
+            // Show login failed message for invalid credentials
+            Toastify({
+              text: "Login failed: " + response.status,
+              duration: 3000,
+              close: true,
+              gravity: "top",
+              position: "right",
+              backgroundColor: "red",
+            }).showToast();
+
+            throw new Error("Login failed");
+          }
+
+          // For successful response (200)
+          return response.json();
+        })
+        .then(data => {
+          const UserData = JSON.stringify(data);
+          const UserUnique = JSON.parse(UserData);
+          if (UserUnique) {
+
+            document.getElementById("no").textContent = UserUnique.no || "N/A";
+            document.getElementById("name").textContent = UserUnique.name || "N/A";
+            document.getElementById("headername").textContent = UserUnique.name || "N/A";
+
+
+            if (UserType === "Customer") {
+              document.getElementById("balance").textContent = UserUnique.balanceLCY || "N/A";
+              document.getElementById("balance_due").textContent = UserUnique.balanceDueLCY || "N/A";
+              document.getElementById("credit_limit").textContent = UserUnique.creditLimitLCY || "N/A";
+              document.getElementById("total_sales").textContent = UserUnique.salesLCY || "N/A";
+
+            }
+            else {
+              document.getElementById("total_purchase").textContent = UserUnique.purchasesLCY || "N/A";
+              document.getElementById("vat_registration").textContent = UserUnique.vatRegistrationNo || "N/A";
+              document.getElementById("federalNo").textContent = UserUnique.federalIDNo || "N/A";
+
+            }
+
+
+            // address data
+            document.getElementById("address").textContent = UserUnique.address || "N/A";
+            document.getElementById("address2").textContent = UserUnique.address2 || "N/A";
+            document.getElementById("city").textContent = UserUnique.city || "N/A";
+            document.getElementById("state").textContent = UserUnique.county || "N/A";
+            document.getElementById("post_code").textContent = UserUnique.postCode || "N/A";
+            document.getElementById("country_code").textContent = UserUnique.countryRegionCode || "N/A";
+            document.getElementById("phone_no").textContent = UserUnique.phoneNo || "N/A";
+            document.getElementById("email").textContent = UserUnique.eMail || "N/A";
+
+
+          } else {
+            document.getElementById("userData").textContent = "No data found!";
+          }
+
+        })
+
     });
     // Refresh the Customer_Home on clicking the Customer_Home link
     document.getElementById("Customer_Home-link").addEventListener("click", function (event) {
@@ -573,24 +795,9 @@
     // onclick event on Logout button
     function logout() {
       // Clear the token or session data Or localStorage, depending on where the token is stored
-      sessionStorage.removeItem("userData");
-      fetch("@($"{API_BASE_URL}")/Home/Logout", {
-        method: "POST",
-        credentials: "include"  // Include cookies if necessary for the server session
-      })
-        .then(response => {
-          if (response.ok) {
-            // Redirect to login page after successful logout
-            sessionStorage.removeItem("isLoggedIn");
-            sessionStorage.clear();
-            window.location.href = "@($"{API_BASE_URL}")";
-          } else {
-            console.error("Failed to log out");
-          }
-        })
-        .catch(error => {
-          console.error("Logout error:", error);
-        });
+      sessionStorage.removeItem("isLoggedIn");
+      sessionStorage.clear();
+      window.location.href = "@($"{API_BASE_URL}")";
     }
 
 

@@ -2,8 +2,10 @@
     ViewData["Title"] = "Orders";
 }
 @inject IConfiguration Configuration
-  @{
+@{
     var API_BASE_URL = $"{Configuration["API_BASE_URL"]}";
+    var API_KEY = Configuration.GetSection("ApiSettings").GetValue<string>("ApiKey");
+    var API_VALUE = Configuration.GetSection("ApiSettings").GetValue<string>("ApiPassword");
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -14,7 +16,6 @@
     <title>@ViewData["Title"] - MyPortal</title>
 
     <link rel="stylesheet" href="~/css/Orders.css" asp-append-version="true" />
-    @* <link rel="stylesheet" href="~/css/Customer_Home.css" asp-append-version="true" /> *@
 
 </head>
 
@@ -24,21 +25,29 @@
         <p>Loading...</p>
     </div>
     <div class="Orders-container">
-
-        <nav class="sidebar">
+        <div class="mobile-header">
+            <button id="menu-toggle" class="menu-toggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        <nav class="sidebar" id="sidebar">
             <ul>
-                <li><a href="@($"{API_BASE_URL}")/Home/Customer_Home"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                <li><a href="@($"{API_BASE_URL}")/Home/Customer_Home"><i
+                            class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
                 <li><a href="#" id="Order-link"><i class="fas fa-users me-2"></i>Orders</a></li>
-                <li><a href="@($"{API_BASE_URL}")/Home/Invoices"><i class="fa-solid fa-file-lines me-2"></i>Invoices</a></li>
-                <li><a href="@($"{API_BASE_URL}")/Home/Quates"><i class="fa-solid fa-pen-to-square me-2"></i>Quates</a></li>
-                <li><a href="@($"{API_BASE_URL}")/Home/Credit_Memo"><i class="fa-solid fa-book me-2"></i>Credit Memo</a></li>
+                <li><a href="@($"{API_BASE_URL}")/Home/Invoices"><i class="fa-solid fa-file-lines me-2"></i>Invoices</a>
+                </li>
+                <li><a href="@($"{API_BASE_URL}")/Home/Quotes"><i class="fa-solid fa-pen-to-square me-2"></i>Quotes</a>
+                </li>
+                <li><a href="@($"{API_BASE_URL}")/Home/Credit_Memo"><i class="fa-solid fa-book me-2"></i>Credit Memo</a>
+                </li>
             </ul>
             <button class="logout-button" onclick="logout()">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </button>
         </nav>
     </div>
-    <main class="content">
+    <main class="content" id="content">
         <div class="header">
             <h2>Order Details</h2>
         </div>
@@ -69,7 +78,35 @@
     <script>
         const UniqueNo = sessionStorage.getItem("UniqueNo");
         const UserType = sessionStorage.getItem("UserType");
+        const loadingOverlay = document.getElementById("loading");
         let timeout;
+        const menuButton = document.getElementById('menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+    
+    
+
+        // Toggle sidebar visibility for small screens
+        menuButton.addEventListener('click', () => {
+            if (window.innerWidth <= 768) { // Apply only for small screens
+                if (sidebar.classList.contains('sidebar-visible')) {
+                    sidebar.classList.remove('sidebar-visible');
+                } else {
+                    sidebar.classList.add('sidebar-visible');
+                }
+            }
+        });
+
+        // Ensure correct sidebar state on window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                // Ensure sidebar is visible and reset styles
+                sidebar.classList.add('sidebar-visible');
+                sidebar.style.transform = ''; // Reset transform property
+            } else {
+                // Ensure sidebar is hidden initially on small screens
+                sidebar.classList.remove('sidebar-visible');
+            }
+        });
 
         function startSessionTimeout() {
             // Clear any existing timeout
@@ -95,15 +132,14 @@
         // Start the initial session timeout when the page loads
         startSessionTimeout();
         function logout() {
-            // Clear the token or session data Or localStorage, depending on where the token is stored
+
             sessionStorage.removeItem("userData");
             fetch("@($"{API_BASE_URL}")/Home/Logout", {
                 method: "POST",
-                credentials: "include"  // Include cookies if necessary for the server session
+                credentials: "include"
             })
                 .then(response => {
                     if (response.ok) {
-                        // Redirect to login page after successful logout
                         sessionStorage.clear();
                         window.location.href = "@($"{API_BASE_URL}")";
                     } else {
@@ -114,12 +150,18 @@
                     console.error("Logout error:", error);
                 });
         }
-        
+
         async function fetchDataAndPopulateTable() {
 
             try {
                 // Retrieve and parse data from sessionStorage
-                const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Orders?No=${10000}&Type=${UserType}`);
+                const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Orders?No=${UniqueNo}&Type=${UserType}`, {
+                    method: "GET",
+                    headers: {
+                    "X-API-KEY": `@($"{API_KEY}")`,
+                    "X-API-PASSWORD": `@($"{API_VALUE}")`
+                    }
+                });
 
                 if (!response.ok) {
                     throw new Error(`Error: ${response.status}`);
@@ -131,7 +173,6 @@
                 if (data && data.length > 0) {
                     // Get the table body element
                     const tableBody = document.getElementById("orderTable").getElementsByTagName("tbody")[0];
-                    console.log(tableBody);
 
                     // Clear any existing rows
                     tableBody.innerHTML = "";
@@ -171,38 +212,34 @@
         }
         // Function to call the API to download the report
         async function downloadReport(orderNo) {
-            // Call the API to get the Base64-encoded PDF content
-            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadOrders/${orderNo}`, {
+            loadingOverlay.style.display = "flex";
+            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadOrdersReports/${orderNo}?Type=${UserType}`, {
                 method: 'GET',
-                headers: { 'Accept': 'application/json' }
+                headers: { 'Accept': 'application/json',
+                            "X-API-KEY": `@($"{API_KEY}")`,
+                            "X-API-PASSWORD": `@($"{API_VALUE}")` }
             });
 
             if (response.ok) {
                 const data = await response.json();
-                console.log(data.base64);
-                console.log(data.success);
+                loadingOverlay.style.display = "none";
 
-                // Assuming the response JSON structure is { success: true, base64Pdf: "Base64StringHere" }
                 if (data.base64) {
                     // Decode the Base64 string
-                    console.log("base64:" + data.base64);
                     const byteCharacters = atob(data.base64);
-                    console.log("bytechar:" + byteCharacters);
 
                     // Convert the byte characters to an array of bytes
                     const byteNumbers = Array.from(byteCharacters).map(char => char.charCodeAt(0));
                     const byteArray = new Uint8Array(byteNumbers);
-                    console.log("bytearray:" + byteArray);
 
                     // Create a Blob from the byte array and specify the MIME type as PDF
                     const blob = new Blob([byteArray], { type: 'application/pdf' });
-                    console.log("blob:" + blob);
 
                     // Create a URL for the Blob and initiate a download
                     const downloadUrl = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = downloadUrl;
-                    link.download = `Order_${orderNo}.pdf`;  // The name of the file to be downloaded
+                    link.download = `ORD_${orderNo}.pdf`;  // The name of the file to be downloaded
                     document.body.appendChild(link);
                     link.click();
 
@@ -210,9 +247,11 @@
                     URL.revokeObjectURL(downloadUrl);
                     document.body.removeChild(link);
                 } else {
+                    loadingOverlay.style.display = "none";
                     alert("File download failed.");
                 }
             } else {
+                loadingOverlay.style.display = "none";
                 alert("Failed to retrieve the file.");
             }
         }

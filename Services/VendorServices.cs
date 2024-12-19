@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MyPortal.Services
 {
-    public class VendorServices
+    public class VendorServices : IVendorService
     {
         private readonly IConfiguration _configuration;
         public VendorServices(IConfiguration configuration)
@@ -42,8 +42,8 @@ namespace MyPortal.Services
 
         public async Task<IActionResult> VendorOrders(string No, string accessToken)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("PurchaseOrder");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
+            string VendorOrderUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("PurchaseOrder");
+            string FilterUrl = $"{VendorOrderUrl}/?$filter=buyFromVendorNo eq '{No}'";
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -66,8 +66,8 @@ namespace MyPortal.Services
 
         public async Task<IActionResult> VendorInvoices(string No, string accessToken)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("PurchaseInvoice");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
+            string VendorInvoiceUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("PurchaseInvoice");
+            string FilterUrl = $"{VendorInvoiceUrl}/?$filter=buyFromVendorNo eq '{No}'";
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -88,10 +88,10 @@ namespace MyPortal.Services
             }
         }
 
-        public async Task<IActionResult> VendorQuates(string No, string accessToken)
+        public async Task<IActionResult> VendorQuotes(string No, string accessToken)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("PurchaseQuote");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
+            string VendorQuateUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("PurchaseQuote");
+            string FilterUrl = $"{VendorQuateUrl}/?$filter=buyFromVendorNo eq '{No}'";
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -114,8 +114,8 @@ namespace MyPortal.Services
 
         public async Task<IActionResult> VendorSalesCreditMemo(string No, string accessToken)
         {
-            string CustomerDetailsUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("PurchaseCreditMemo");
-            string FilterUrl = $"{CustomerDetailsUrl}/?$filter=sellToCustomerNo eq '{No}'";
+            string VendorSalesCreditMemo = _configuration.GetSection("BusinessCentralServices").GetValue<string>("PurchaseCreditMemo");
+            string FilterUrl = $"{VendorSalesCreditMemo}/?$filter=buyFromVendorNo eq '{No}'";
             using (HttpClient client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);

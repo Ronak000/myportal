@@ -11,9 +11,10 @@ using Microsoft.OData;
 using System.Xml.Linq;
 using Microsoft.OData.Edm;
 using System.IO.Compression;
+using MyPortal.Services.ReportService;
 
 namespace MyPortal.Services
-{
+{ 
     public class UserServices
     {
         private static List<ClientUser> cachedUsers;
@@ -22,35 +23,39 @@ namespace MyPortal.Services
 
         public IConfiguration _configuration { get; }
         public IHttpContextAccessor _context { get; }
-        private readonly CustomerServices _customerServices;
-        private readonly VendorServices _vendorServices;
+        protected readonly ICustomerService _customerService;
 
-        public UserServices(IConfiguration configuration, IHttpContextAccessor context, CustomerServices customerServices, VendorServices vendorServices)
+        protected readonly IVendorService _vendorService;
+        public IReportServices _reportServices { get; }
+
+        public UserServices(IConfiguration configuration, IHttpContextAccessor context, ICustomerService customerService, IVendorService vendorService, IReportServices reportServices)
         {
-            _vendorServices = vendorServices;
-            _customerServices = customerServices;
+            _reportServices = reportServices;
+            _vendorService = vendorService;
+            _customerService = customerService;
             _configuration = configuration;
             _context = context;
         }
 
         public async Task InitializeAsync()
         {
-            var tenantId = _configuration.GetSection("AzureAD").GetValue<string>("TenantId");
-            var clientId = _configuration.GetSection("AzureAD").GetValue<string>("ClientId");
-            var clientSecret = _configuration.GetSection("AzureAd").GetValue<string>("ClientSecret");
+
             // Get the access token
-            accessToken = await GetAccessTokenAsync(tenantId, clientId, clientSecret);
+            accessToken = await GetAccessTokenAsync();
 
         }
-        public static async Task<string> GetAccessTokenAsync(string tenantId, string clientId, string clientSecret)
+        public async Task<string> GetAccessTokenAsync()
         {
+            var MicrosoftUrl = _configuration.GetSection("AzureAD").GetValue<string>("Instance");
+            var TenantId = _configuration.GetSection("AzureAD").GetValue<string>("TenantId");
+            var ClientId = _configuration.GetSection("AzureAD").GetValue<string>("ClientId");
+            var ClientSecret = _configuration.GetSection("AzureAd").GetValue<string>("ClientSecret");
             if (string.IsNullOrEmpty(accessToken) || tokenExpiry <= DateTime.UtcNow)
             {
                 // Get a new access token
-                var newTokenResponse = await TokenManager.GetNewAccessTokenAsync(tenantId, clientId, clientSecret);
+                var newTokenResponse = await TokenManager.GetNewAccessTokenAsync(MicrosoftUrl, TenantId, ClientId, ClientSecret);
                 accessToken = newTokenResponse.access_token;
-                var currenttime = DateTime.UtcNow;
-                tokenExpiry = DateTime.UtcNow.AddSeconds(newTokenResponse.expires_in - 3539); // Token expiry buffer
+                tokenExpiry = DateTime.UtcNow.AddSeconds(newTokenResponse.expires_in - 60); // Token expiry buffer
             }
             return accessToken;
         }
@@ -64,30 +69,32 @@ namespace MyPortal.Services
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
                 HttpResponseMessage response = await client.GetAsync(FilterUrl);
-
+                ODataResponse<ClientUser>? users = new ODataResponse<ClientUser>();
                 if (response.IsSuccessStatusCode)
                 {
                     var data = await response.Content.ReadAsStringAsync();
-                    var users = JsonConvert.DeserializeObject<ODataResponse<ClientUser>>(data);
+                    users = JsonConvert.DeserializeObject<ODataResponse<ClientUser>>(data);
                     return users.Value;
                 }
                 else
                 {
                     Console.WriteLine("Failed to get data: " + response.StatusCode);
-                    return null;
+                    return users.Value;
                 }
             }
         }
 
         public async Task<IActionResult> LoginUser(string Email, string password)
         {
-            // if (string.IsNullOrEmpty(accessToken) || tokenExpiry <= DateTime.UtcNow )
-            // {
-            //     var token = InitializeAsync();
-            //     accessToken = token.ToString();
-            // }
+            if (tokenExpiry <= DateTime.UtcNow)
+            {
+                accessToken = await GetAccessTokenAsync();
+            }
             cachedUsers = await FetchUsersFromService(accessToken, Email);
-            bool value = false;
+            if(cachedUsers == null)
+            {
+                return new BadRequestObjectResult("User Data not found!");
+            }
             var Users = cachedUsers.Where(u => u.Email == Email).ToList();
             if (Users.Count == 2)
             {
@@ -124,10 +131,7 @@ namespace MyPortal.Services
                         }
                         else
                         {
-                            // byte[] emailBytes = Encoding.UTF8.GetBytes(User.Email);
-                            // string email = Convert.ToBase64String(emailBytes);
                             return new OkObjectResult(new { redirected = true, UsersData = Users });
-                            // return new RedirectToActionResult("Change_Password", "Home", new { email });
                         }
 
                     }
@@ -172,18 +176,18 @@ namespace MyPortal.Services
                 return new UnauthorizedObjectResult("Invalid username or password");
             }
         }
-        public async Task<Dictionary<string, Object>> GetCustomerDetails(string UniqueNo)
-        {
-            return await _customerServices.CustomerDetails(UniqueNo, accessToken);
-        }
-        public async Task<Dictionary<string, Object>> GetVendorDetails(string UniqueNo)
-        {
-
-            return await _vendorServices.VendorDetails(UniqueNo, accessToken);
-        }
+        
         public async Task<IActionResult> CheckUSerExist(string email)
         {
+            if (tokenExpiry <= DateTime.UtcNow)
+            {
+                accessToken = await GetAccessTokenAsync();
+            }
             cachedUsers = await FetchUsersFromService(accessToken, email);
+            if(cachedUsers == null)
+            {
+                return new BadRequestObjectResult("User Data not found!");
+            }
             if (cachedUsers.Count == 2)
             {
                 return new OkObjectResult(new { value = true, UsersData = cachedUsers });
@@ -293,398 +297,143 @@ namespace MyPortal.Services
             }
 
         }
+        // Customer Data
+        public async Task<Dictionary<string, Object>> GetCustomerDetails(string UniqueNo)
+        {
+            if (tokenExpiry <= DateTime.UtcNow)
+            {
+                accessToken = await GetAccessTokenAsync();
+            }
+            return await _customerService.CustomerDetails(UniqueNo, accessToken);
+        }
         public async Task<IActionResult> GetCustomerOrders(string No)
         {
-            return await _customerServices.CustomerOrders(No, accessToken);
+            if (tokenExpiry <= DateTime.UtcNow)
+            {
+                accessToken = await GetAccessTokenAsync();
+            }
+            return await _customerService.CustomerOrders(No, accessToken);
         }
-        public async Task<IActionResult> GetVendorOrders(string No)
-        {
-            return await _vendorServices.VendorOrders(No, accessToken);
-        }
-
         public async Task<IActionResult> GetCustomerInvoices(string No)
         {
-            return await _customerServices.CustomerInvoices(No, accessToken);
+            if (tokenExpiry <= DateTime.UtcNow)
+            {
+                accessToken = await GetAccessTokenAsync();
+            }
+            return await _customerService.CustomerInvoices(No, accessToken);
         }
-        public async Task<IActionResult> GetVendorInvoices(string No)
+        public async Task<IActionResult> GetCustomerQuotes(string No)
         {
-            return await _vendorServices.VendorInvoices(No, accessToken);
+            if (tokenExpiry <= DateTime.UtcNow)
+            {
+                accessToken = await GetAccessTokenAsync();
+            }
+            return await _customerService.CustomerQuotes(No, accessToken);
+        }
+        public async Task<IActionResult> GetCustomerSalesCreditMemo(string No)
+        {
+            if (tokenExpiry <= DateTime.UtcNow)
+            {
+                accessToken = await GetAccessTokenAsync();
+            }
+            return await _customerService.CustomerSalesCreditMemo(No, accessToken);
         }
         public async Task<IActionResult> GetEarliestPaymentDate(string No)
         {
-
-            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
-            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:GetEarliestPaymentDate";
-            var SoapXml = $@"
-            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
-                        <soapenv:Header/>
-                        <soapenv:Body>
-                            <urn:GetEarliestPaymentDate>
-                                <urn:custNo>{No}</urn:custNo>
-                            </urn:GetEarliestPaymentDate>
-                        </soapenv:Body>
-                    </soapenv:Envelope>";
-
-
-            using (HttpClient client = new HttpClient())
-            {
-                var Request = new HttpRequestMessage
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(BCCustomerLoginApiUrl),
-                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml")
-                };
-                Request.Headers.Add("SOAPAction", SOAPAction);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                HttpResponseMessage Response = await client.SendAsync(Request);
-
-                if (Response.IsSuccessStatusCode)
-                {
-                    var Data = await Response.Content.ReadAsStringAsync();
-                    var RootElement = XElement.Parse(Data);
-                    var Date = RootElement.Value.ToString();
-                    return new OkObjectResult(new { Date = Date });
-                }
-                else
-                {
-                    Console.WriteLine("Error while sending temporary password:" + Response.IsSuccessStatusCode);
-                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
-                }
-            }
-
+            return await _customerService.GetEarliestPaymentDate(No, accessToken);
         }
         public async Task<IActionResult> GetEarliestPaymentAmount(string No)
         {
-            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
-            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:GetEarliestPaymentAmount";
-            var SoapXml = $@"
-            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
-                        <soapenv:Header/>
-                        <soapenv:Body>
-                            <urn:GetEarliestPaymentAmount>
-                                <urn:custNo>{No}</urn:custNo>
-                            </urn:GetEarliestPaymentAmount>
-                        </soapenv:Body>
-                    </soapenv:Envelope>";
-
-
-            using (HttpClient client = new HttpClient())
-            {
-                var Request = new HttpRequestMessage
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(BCCustomerLoginApiUrl),
-                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml")
-                };
-                Request.Headers.Add("SOAPAction", SOAPAction);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                HttpResponseMessage Response = await client.SendAsync(Request);
-
-                if (Response.IsSuccessStatusCode)
-                {
-                    var Data = await Response.Content.ReadAsStringAsync();
-                    var RootElement = XElement.Parse(Data);
-                    var Amount = double.Parse(RootElement.Value);
-                    return new OkObjectResult(Amount);
-                }
-                else
-                {
-                    Console.WriteLine("Error while sending temporary password:" + Response.IsSuccessStatusCode);
-                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
-                }
-            }
+            return await _customerService.GetEarliestPaymentAmount(No, accessToken);
         }
 
-        public async Task<IActionResult> DownloadOrders(string OrderNo)
-        {
-            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
-            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadSalesOrderReport";
-            var SoapXml = $@"
-            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
-                <soapenv:Header/>
-                <soapenv:Body>
-                    <urn:DownloadSalesOrderReport>
-                        <urn:salesOrderNo_iCod>{OrderNo}</urn:salesOrderNo_iCod>
-                    </urn:DownloadSalesOrderReport>
-                </soapenv:Body>
-            </soapenv:Envelope>";
-
-
-            using (HttpClient client = new HttpClient())
-            {
-                var Request = new HttpRequestMessage
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(BCCustomerLoginApiUrl),
-                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
-                };
-                Request.Headers.Add("SOAPAction", SOAPAction);
-                // Request.Headers.Add("Accept", "application/pdf");
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                HttpResponseMessage Response = await client.SendAsync(Request);
-
-                if (Response.IsSuccessStatusCode)
-                {
-                    var Data = await Response.Content.ReadAsStringAsync();
-                    var RootElement = XElement.Parse(Data);
-                    var Base64String = RootElement.Value;
-                    return new OkObjectResult(new { base64 = Base64String });
-                }
-                else
-                {
-                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
-                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
-                }
-            }
-        }
-
-        public async Task<IActionResult> DownloadInvoices(string InvoiceNo)
-        {
-            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
-            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadSalesInvoiceReport";
-            var SoapXml = $@"
-            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
-                        <soapenv:Header/>
-                        <soapenv:Body>
-                            <urn:DownloadSalesInvoiceReport>
-                                <urn:salesInvoiceNo_iCod>{InvoiceNo}</urn:salesInvoiceNo_iCod>
-                            </urn:DownloadSalesInvoiceReport>
-                        </soapenv:Body>
-                    </soapenv:Envelope>";
-
-
-            using (HttpClient client = new HttpClient())
-            {
-                var Request = new HttpRequestMessage
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(BCCustomerLoginApiUrl),
-                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
-                };
-                Request.Headers.Add("SOAPAction", SOAPAction);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                HttpResponseMessage Response = await client.SendAsync(Request);
-
-                if (Response.IsSuccessStatusCode)
-                {
-                    var Data = await Response.Content.ReadAsStringAsync();
-                    var RootElement = XElement.Parse(Data);
-                    var Base64String = RootElement.Value;
-                    return new OkObjectResult(new { base64 = Base64String });
-                }
-                else
-                {
-                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
-                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
-                }
-            }
-        }
-
+        // Customers all different types of reports
         public async Task<IActionResult> DownloadStatements(string No, DateRange DateRange)
         {
-            var StartDate = DateRange.StartDate.ToString("yyyy-MM-dd");
-            var EndDate = DateRange.EndDate.ToString("yyyy-MM-dd");
-            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
-            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadCustomerStatement";
-            var SoapXml = $@"
-            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
-                <soapenv:Header/>
-                    <soapenv:Body>
-                        <urn:DownloadCustomerStatement>
-                            <urn:custNo>{No}</urn:custNo>
-                            <urn:startDate>{StartDate}</urn:startDate>
-                            <urn:endDate>{EndDate}</urn:endDate>
-                        </urn:DownloadCustomerStatement>
-                    </soapenv:Body>
-            </soapenv:Envelope>
-            ";
+            return await _reportServices.customerReportServices().DownloadCustomerStatementReport(No, DateRange, accessToken);
+        }
+        public async Task<IActionResult> DownloadSalesOrdersReport(string OrderNo)
+        {
+            return await _reportServices.customerReportServices().DownloadSalesOrderReport(OrderNo, accessToken);
+        }
+        public async Task<IActionResult> DownloadSalesInvoicesReport(string InvoiceNo)
+        {
+            return await _reportServices.customerReportServices().DownloadSalesInvoicesReport(InvoiceNo, accessToken);
+        }
+        public async Task<IActionResult> DownloadSalesQuotesReport(string QuoteNo)
+        {
+            return await _reportServices.customerReportServices().DownloadSalesQuotesReport(QuoteNo, accessToken);
+        }
+        public async Task<IActionResult> DownloadSalesCreditMemoReport(string SalesCreditMemoNo)
+        {
+            return await _reportServices.customerReportServices().DownloadSalesCreditMemoReport(SalesCreditMemoNo, accessToken);
+        }
 
-
-            using (HttpClient client = new HttpClient())
+        // Vendor Data
+        public async Task<Dictionary<string, Object>> GetVendorDetails(string UniqueNo)
+        {
+            if (tokenExpiry <= DateTime.UtcNow)
             {
-                var Request = new HttpRequestMessage
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(BCCustomerLoginApiUrl),
-                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
-                };
-                Request.Headers.Add("SOAPAction", SOAPAction);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                HttpResponseMessage Response = await client.SendAsync(Request);
-
-                if (Response.IsSuccessStatusCode)
-                {
-                    var Data = await Response.Content.ReadAsStringAsync();
-                    var RootElement = XElement.Parse(Data);
-                    var Base64String = RootElement.Value;
-                    return new OkObjectResult(new { base64 = Base64String });
-                }
-                else
-                {
-                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
-                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
-                }
+                accessToken = await GetAccessTokenAsync();
             }
+            return await _vendorService.VendorDetails(UniqueNo, accessToken);
         }
-
-        public async Task<IActionResult> GetCustomerQuates(string No)
+        
+        public async Task<IActionResult> GetVendorOrders(string No)
         {
-            return await _customerServices.CustomerQuates(No, accessToken);
-        }
-        public async Task<IActionResult> GetVendorQuates(string No)
-        {
-            return await _vendorServices.VendorQuates(No, accessToken);
-        }
-
-        public async Task<IActionResult> DownloadQuates(string QuateNo)
-        {
-            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
-            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadSalesQuoteReport";
-            var SoapXml = $@"
-           <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
-                <soapenv:Header/>
-                <soapenv:Body>
-                    <urn:DownloadSalesQuoteReport>
-                        <urn:salesQuoteNo_iCod>{QuateNo}</urn:salesQuoteNo_iCod>
-                    </urn:DownloadSalesQuoteReport>
-                </soapenv:Body>
-            </soapenv:Envelope>";
-
-
-            using (HttpClient client = new HttpClient())
+            if (tokenExpiry <= DateTime.UtcNow)
             {
-                var Request = new HttpRequestMessage
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(BCCustomerLoginApiUrl),
-                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
-                };
-                Request.Headers.Add("SOAPAction", SOAPAction);
-                // Request.Headers.Add("Accept", "application/pdf");
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                HttpResponseMessage Response = await client.SendAsync(Request);
-
-                if (Response.IsSuccessStatusCode)
-                {
-                    var Data = await Response.Content.ReadAsStringAsync();
-                    var RootElement = XElement.Parse(Data);
-                    var Base64String = RootElement.Value;
-                    return new OkObjectResult(new { base64 = Base64String });
-                }
-                else
-                {
-                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
-                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
-                }
+                accessToken = await GetAccessTokenAsync();
             }
+            return await _vendorService.VendorOrders(No, accessToken);
         }
-
-        public async Task<IActionResult> GetCustomerSalesCreditMemo(string No)
+        
+        public async Task<IActionResult> GetVendorInvoices(string No)
         {
-            return await _customerServices.CustomerSalesCreditMemo(No, accessToken);
+            if (tokenExpiry <= DateTime.UtcNow)
+            {
+                accessToken = await GetAccessTokenAsync();
+            }
+            return await _vendorService.VendorInvoices(No, accessToken);
+        }
+        public async Task<IActionResult> GetVendorQuotes(string No)
+        {
+            if (tokenExpiry <= DateTime.UtcNow)
+            {
+                accessToken = await GetAccessTokenAsync();
+            }
+            return await _vendorService.VendorQuotes(No, accessToken);
         }
         public async Task<IActionResult> GetVendorSalesCreditMemo(string No)
         {
-            return await _vendorServices.VendorSalesCreditMemo(No, accessToken);
-        }
-
-        public async Task<IActionResult> DownloadSalesCreditMemos(string SalesCreditMemoNo)
-        {
-            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
-            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadSalesCreditMemoReport";
-            var SoapXml = $@"
-           <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
-                <soapenv:Header/>
-                <soapenv:Body>
-                    <urn:DownloadSalesCreditMemoReport>
-                        <urn:salesCreditMemoNo_iCod>{SalesCreditMemoNo}</urn:salesCreditMemoNo_iCod>
-                    </urn:DownloadSalesCreditMemoReport>
-                </soapenv:Body>
-            </soapenv:Envelope>";
-
-
-            using (HttpClient client = new HttpClient())
+            if (tokenExpiry <= DateTime.UtcNow)
             {
-                var Request = new HttpRequestMessage
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(BCCustomerLoginApiUrl),
-                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
-                };
-                Request.Headers.Add("SOAPAction", SOAPAction);
-                // Request.Headers.Add("Accept", "application/pdf");
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                HttpResponseMessage Response = await client.SendAsync(Request);
-
-                if (Response.IsSuccessStatusCode)
-                {
-                    var Data = await Response.Content.ReadAsStringAsync();
-                    var RootElement = XElement.Parse(Data);
-                    var Base64String = RootElement.Value;
-                    return new OkObjectResult(new { base64 = Base64String });
-                }
-                else
-                {
-                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
-                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
-                }
+                accessToken = await GetAccessTokenAsync();
             }
+            return await _vendorService.VendorSalesCreditMemo(No, accessToken);
         }
 
+        // Vendor's all different types of reports
         public async Task<IActionResult> DownloadVendorDetails(string No)
         {
-            var BCCustomerLoginApiUrl = _configuration.GetSection("BusinessCentralServices").GetValue<string>("ChangePassword");
-            string SOAPAction = "urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS:DownloadVendorDetails";
-            var SoapXml = $@"
-            <soapenv:Envelope xmlns:soapenv='http://schemas.xmlsoap.org/soap/envelope/' xmlns:urn='urn:microsoft-dynamics-schemas/codeunit/CP_Functionality_WS'>
-                <soapenv:Header/>
-                    <soapenv:Body>
-                        <urn:DownloadVendorDetails>
-                            <urn:vendorNo>{No}</urn:vendorNo>
-                        </urn:DownloadVendorDetails>
-                    </soapenv:Body>
-            </soapenv:Envelope>
-            ";
-
-
-            using (HttpClient client = new HttpClient())
-            {
-                var Request = new HttpRequestMessage
-                {
-                    Method = HttpMethod.Get,
-                    RequestUri = new Uri(BCCustomerLoginApiUrl),
-                    Content = new StringContent(SoapXml, Encoding.UTF8, "text/xml"),
-                };
-                Request.Headers.Add("SOAPAction", SOAPAction);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-                HttpResponseMessage Response = await client.SendAsync(Request);
-
-                if (Response.IsSuccessStatusCode)
-                {
-                    var Data = await Response.Content.ReadAsStringAsync();
-                    var RootElement = XElement.Parse(Data);
-                    var Base64String = RootElement.Value;
-                    return new OkObjectResult(new { base64 = Base64String });
-                }
-                else
-                {
-                    Console.WriteLine("Error while downloading order report:" + Response.IsSuccessStatusCode);
-                    return new BadRequestObjectResult(Response.IsSuccessStatusCode);
-                }
-            }
+            return await _reportServices.vendorReportServices().DownloadVendorDetails(No, accessToken);
         }
+        public async Task<IActionResult> DownloadPurchadeOrdersReport(string OrderNo)
+        {
+            return await _reportServices.vendorReportServices().DownloadVendorOrderReport(OrderNo, accessToken);
+        }
+        public async Task<IActionResult> DownloadPurchaseInvoicesReport(string InvoiceNo)
+        {
+            return await _reportServices.vendorReportServices().DownloadVendorInvoiceReport(InvoiceNo, accessToken);
+        }
+        public async Task<IActionResult> DownloadPurchaseQuotesReport(string QuoteNo)
+        {
+            return await _reportServices.vendorReportServices().DownloadVendorQuoteReport(QuoteNo, accessToken);
+        }     
+        public async Task<IActionResult> DownloadPurchaseCreditMemoReport(string SalesCreditMemoNo)
+        {
+            return await _reportServices.vendorReportServices().DownloadVendorCreditMemoReport(SalesCreditMemoNo, accessToken);
+        }
+        
     }
-}
-public class UserInfo
-{
-    public IActionResult UserDetails { get; set; }
-    public string Type { get; set; }
 }

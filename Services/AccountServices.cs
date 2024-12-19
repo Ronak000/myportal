@@ -12,29 +12,10 @@ namespace MyPortal.Services
 
     public class AccountServices
     {
-        private readonly DatabaseContext _context;
         private readonly UserServices _userService;
-        public AccountServices(DatabaseContext context, UserServices userService)
+        public AccountServices(UserServices userService)
         {
             _userService = userService;
-            _context = context;
-        }
-
-        public async Task<IActionResult> AddUSer(UserDetailsDTO userDetails)
-        {
-            
-            var User = new ClientUser()
-            {
-                No = userDetails.No,
-                Name = userDetails.FirstName + " " + userDetails.LastName,
-                Email = userDetails.Email,
-                PhoneNumber = userDetails.PhoneNumber,
-                Password = userDetails.Password,
-            };
-            _context.ClientUser.Add(User);
-            _context.SaveChanges();
-
-            return new NoContentResult();
         }
 
         public async Task<IActionResult> TemporaryPassword(string Email)
