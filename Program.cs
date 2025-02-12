@@ -1,12 +1,8 @@
 
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Identity.Web;
 using Microsoft.OpenApi.Models;
 using MyPortal;
-using MyPortal.Data;
 using MyPortal.Services;
 using System.Reflection;
 using Microsoft.AspNetCore.Http;
@@ -17,7 +13,7 @@ using MyPortal.Services.ReportService;
 
 public class Program
 {
-    private static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         var Configuration = builder.Configuration;
@@ -43,6 +39,7 @@ public class Program
         builder.Services.AddScoped<AccountServices>();
         builder.Services.AddScoped<CustomerServices>();
         builder.Services.AddScoped<VendorServices>();
+        builder.Services.AddScoped<ITokenManager, TokenManager>();
         builder.Services.AddScoped<ICustomerService, CustomerServices>();
         builder.Services.AddScoped<IVendorService, VendorServices>();
         builder.Services.AddScoped<IReportServices, ReportService>();
@@ -75,12 +72,12 @@ public class Program
 
 
         var app = builder.Build();
-        using (var scope = app.Services.CreateScope())
+        await using (var scope = app.Services.CreateAsyncScope())
         {
             var userService = scope.ServiceProvider.GetRequiredService<UserServices>();
 
             // Call methods to fetch tokens or initialize
-            userService.InitializeAsync(); // Assuming you have these methods in the service classes
+            await userService.InitializeAsync(); // Assuming you have these methods in the service classes
 
         }
         if (app.Environment.IsDevelopment())
@@ -119,6 +116,6 @@ public class Program
             name: "default",
             pattern: "{controller=Home}/{action=Index}");
 
-        app.Run();
+        await app.RunAsync();
     }
 }

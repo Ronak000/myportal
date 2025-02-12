@@ -8,10 +8,10 @@ namespace MyPortal.Services.ReportService
 {
     public interface IVendorReportServices
     {
-        Task<IActionResult> DownloadVendorCreditMemoReport(string salesCreditMemoNo, string accessToken);
+        Task<IActionResult> DownloadVendorCreditMemoReport(string SalesCreditMemoNo, string accessToken);
         Task<IActionResult> DownloadVendorDetails(string No, string accessToken);
-        Task<IActionResult> DownloadVendorInvoiceReport(string invoiceNo, string accessToken);
+        Task<IActionResult> DownloadVendorInvoiceReport(string InvoiceNo, string accessToken);
         Task<IActionResult> DownloadVendorOrderReport(string OrderNo, string accessToken);
-        Task<IActionResult> DownloadVendorQuoteReport(string quoteNo, string accessToken);
+        Task<IActionResult> DownloadVendorQuoteReport(string QuoteNo, string accessToken);
     }
 }

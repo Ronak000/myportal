@@ -27,9 +27,11 @@ namespace MyPortal.Services
 
         protected readonly IVendorService _vendorService;
         public IReportServices _reportServices { get; }
+        private readonly ITokenManager _tokenManager;
 
-        public UserServices(IConfiguration configuration, IHttpContextAccessor context, ICustomerService customerService, IVendorService vendorService, IReportServices reportServices)
+        public UserServices(IConfiguration configuration, IHttpContextAccessor context, ICustomerService customerService, IVendorService vendorService, IReportServices reportServices, ITokenManager tokenManager)
         {
+            _tokenManager = tokenManager;
             _reportServices = reportServices;
             _vendorService = vendorService;
             _customerService = customerService;
@@ -53,7 +55,7 @@ namespace MyPortal.Services
             if (string.IsNullOrEmpty(accessToken) || tokenExpiry <= DateTime.UtcNow)
             {
                 // Get a new access token
-                var newTokenResponse = await TokenManager.GetNewAccessTokenAsync(MicrosoftUrl, TenantId, ClientId, ClientSecret);
+                var newTokenResponse = await _tokenManager.GetNewAccessTokenAsync(MicrosoftUrl, TenantId, ClientId, ClientSecret);
                 accessToken = newTokenResponse.access_token;
                 tokenExpiry = DateTime.UtcNow.AddSeconds(newTokenResponse.expires_in - 60); // Token expiry buffer
             }

@@ -6,9 +6,9 @@ using System.Text.Json;
 
 namespace MyPortal
 {
-    public class TokenManager
+    public class TokenManager : ITokenManager
     {
-        public static async Task<TokenDTO> GetNewAccessTokenAsync(string MicrosoftUrl, string TenantId, string ClientId, string ClientSecret)
+        public async Task<TokenDTO> GetNewAccessTokenAsync(string MicrosoftUrl, string TenantId, string ClientId, string ClientSecret)
         {
             var token = await GetTokenAsync(MicrosoftUrl, TenantId, ClientId, ClientSecret);
 

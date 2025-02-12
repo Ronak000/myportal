@@ -1,16 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using MyPortal.Models;
-using Newtonsoft.Json;
 using System.Net;
 using System.Net.Http.Headers;
 using Microsoft.OData.Buffers;
-using Microsoft.Identity.Client;
 using NAV;
 using MyPortal.Services;
-using Microsoft.EntityFrameworkCore;
+
 using System.Text.Json;
 using MyPortal.DTO;
-using MyPortal.Data;
 using System.Xml.Linq;
 using Microsoft.OData.Edm;
 

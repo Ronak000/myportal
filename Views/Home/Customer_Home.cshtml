@@ -79,9 +79,9 @@
             <!-- <button class="btn btn-primary" onclick="openModal()">Download Statement</button> -->
           </div>
           <div class="header mb-4">
-            <h3 id="customer_details">Customer Details</h3>
+            <h3 id="customer_details">Details</h3>
             <button class="statement-button" id="customer_statement" onclick="openModal()">Download Statement</button>
-            <button class="statement-button" id="vendor_details" onclick="DownloadVendorDetails()">Download Vendor
+            <button class="statement-button" id="vendor_details" onclick="DownloadVendorDetails()">Download Supplier
               Ledger</button>
             @* <button class="statement-button" data-bs-toggle="modal" data-bs-target="#download_statement">Download Statement</button> *@
 
@@ -324,7 +324,7 @@
         purchase_federalIdNo.style.display = 'none';
       }
       else {
-        cust_details.textContent = "Vendor Details";
+        cust_details.textContent = "Supplier Details";
         // Remove or hide specific tiles for vendor login
         document.getElementById("earliestpaymentdate").closest(".col-sm-6").style.display = "none";
         document.getElementById("earliestpaymentamount").closest(".col-sm-6").style.display = "none";
