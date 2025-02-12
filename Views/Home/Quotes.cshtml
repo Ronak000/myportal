@@ -1,8 +1,8 @@
 @{
-    ViewData["Title"] = "Orders";
+    ViewData["Title"] = "Quotes";
 }
 @inject IConfiguration Configuration
-@{
+  @{
     var API_BASE_URL = $"{Configuration["API_BASE_URL"]}";
     var API_KEY = Configuration.GetSection("ApiSettings").GetValue<string>("ApiKey");
     var API_VALUE = Configuration.GetSection("ApiSettings").GetValue<string>("ApiPassword");
@@ -32,28 +32,24 @@
         </div>
         <nav class="sidebar" id="sidebar">
             <ul>
-                <li><a href="@($"{API_BASE_URL}")/Home/Customer_Home"><i
-                            class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
-                <li><a href="#" id="Order-link"><i class="fas fa-users me-2"></i>Orders</a></li>
-                <li><a href="@($"{API_BASE_URL}")/Home/Invoices"><i class="fa-solid fa-file-lines me-2"></i>Invoices</a>
-                </li>
-                <li><a href="@($"{API_BASE_URL}")/Home/Quotes"><i class="fa-solid fa-pen-to-square me-2"></i>Quotes</a>
-                </li>
-                <li><a href="@($"{API_BASE_URL}")/Home/Credit_Memo"><i class="fa-solid fa-book me-2"></i>Credit Memo</a>
-                </li>
+                <li><a href="@($"{API_BASE_URL}")/Home/Customer_Home"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                <li><a href="@($"{API_BASE_URL}")/Home/Orders"><i class="fas fa-users me-2"></i>Orders</a></li>
+                <li><a href="@($"{API_BASE_URL}")/Home/Invoices"><i class="fa-solid fa-file-lines me-2"></i>Invoices</a></li>
+                <li><a href="#" id="Quote-link"><i class="fa-solid fa-pen-to-square me-2"></i>Quotes</a></li>
+                <li><a href="@($"{API_BASE_URL}")/Home/Credit_Memo"><i class="fa-solid fa-book me-2"></i>Credit Memo</a></li>
             </ul>
             <button class="logout-button" onclick="logout()">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </button>
         </nav>
     </div>
-    <main class="content" id="content">
+    <main class="content">
         <div class="header">
-            <h2>Order Details</h2>
+            <h2>Quotes Details</h2>
         </div>
     </main>
     <div class="ordertable">
-        <table class="styled-table" id="orderTable">
+        <table class="styled-table" id="quoteTable">
             <thead>
                 <tr>
                     <th>No.</th>
@@ -82,8 +78,7 @@
         let timeout;
         const menuButton = document.getElementById('menu-toggle');
         const sidebar = document.getElementById('sidebar');
-    
-    
+
 
         // Toggle sidebar visibility for small screens
         menuButton.addEventListener('click', () => {
@@ -132,14 +127,15 @@
         // Start the initial session timeout when the page loads
         startSessionTimeout();
         function logout() {
-
+            // Clear the token or session data Or localStorage, depending on where the token is stored
             sessionStorage.removeItem("userData");
             fetch("@($"{API_BASE_URL}")/Home/Logout", {
                 method: "POST",
-                credentials: "include"
+                credentials: "include"  // Include cookies if necessary for the server session
             })
                 .then(response => {
                     if (response.ok) {
+                        // Redirect to login page after successful logout
                         sessionStorage.clear();
                         window.location.href = "@($"{API_BASE_URL}")";
                     } else {
@@ -149,13 +145,12 @@
                 .catch(error => {
                     console.error("Logout error:", error);
                 });
-        }
-
+        }   
         async function fetchDataAndPopulateTable() {
 
             try {
                 // Retrieve and parse data from sessionStorage
-                const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Orders?No=${UniqueNo}&Type=${UserType}`, {
+                const response = await fetch(`@($"{API_BASE_URL}")/api/Account/Quotes?No=${UniqueNo}&Type=${UserType}`, {
                     method: "GET",
                     headers: {
                     "X-API-KEY": `@($"{API_KEY}")`,
@@ -172,7 +167,7 @@
 
                 if (data && data.length > 0) {
                     // Get the table body element
-                    const tableBody = document.getElementById("orderTable").getElementsByTagName("tbody")[0];
+                    const tableBody = document.getElementById("quoteTable").getElementsByTagName("tbody")[0];
 
                     // Clear any existing rows
                     tableBody.innerHTML = "";
@@ -200,20 +195,20 @@
                 }
                 else {
                     // If no data, display a message
-                    document.getElementById("orderTable").getElementsByTagName("tbody")[0].innerHTML = "<tr><td colspan='8'>No data available</td></tr>";
+                    document.getElementById("quoteTable").getElementsByTagName("tbody")[0].innerHTML = "<tr><td colspan='8'>No data available</td></tr>";
                 }
             }
 
             catch (error) {
                 console.error("Error fetching data:", error);
-                const tableBody = document.getElementById("orderTable").getElementsByTagName("tbody")[0];
+                const tableBody = document.getElementById("quoteTable").getElementsByTagName("tbody")[0];
                 tableBody.innerHTML = "<tr><td colspan='8'>Error fetching data</td></tr>";
             }
         }
         // Function to call the API to download the report
-        async function downloadReport(orderNo) {
+        async function downloadReport(quoteNo) {
             loadingOverlay.style.display = "flex";
-            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadOrdersReports/${orderNo}?Type=${UserType}`, {
+            const response = await fetch(`@($"{API_BASE_URL}")/api/Account/DownloadQuotesReport/${quoteNo}?Type=${UserType}`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json',
                             "X-API-KEY": `@($"{API_KEY}")`,
@@ -239,7 +234,7 @@
                     const downloadUrl = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = downloadUrl;
-                    link.download = `ORD_${orderNo}.pdf`;  // The name of the file to be downloaded
+                    link.download = `QUO_${quoteNo}.pdf`;  // The name of the file to be downloaded
                     document.body.appendChild(link);
                     link.click();
 
@@ -257,7 +252,7 @@
         }
         window.addEventListener("load", fetchDataAndPopulateTable);
 
-        document.getElementById("Order-link").addEventListener("click", function (event) {
+        document.getElementById("Quote-link").addEventListener("click", function (event) {
             event.preventDefault(); // Prevent the default link action
             document.getElementById("loading").style.display = "flex"; // Show loading indicator
             setTimeout(() => {
